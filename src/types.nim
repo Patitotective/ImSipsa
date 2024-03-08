@@ -212,18 +212,18 @@ type
     None, Huge, Big, Medium, Small, Mini
 
   Settings* {.defaults: {}.} = object
-    input* = inputSetting(display = "Input", default = "Hello World")
-    input2* = inputSetting(
-      display = "Custom Input", hint = "Type...",
-      help = "Has a hint, 10 characters maximum and only accepts on return",
-      limits = 0..10, flags = @[ImGuiInputTextFlags.EnterReturnsTrue]
-    )
-    check* = checkSetting(display = "Checkbox", default = true)
-    combo* = comboSetting(display = "Combo box", items = Sizes.toSeq, default = None)
-    radio* = radioSetting(display = "Radio button", items = @[Big, Medium, Small], default = Medium)
-    os* = sectionSetting(display = "File dialogs", help = "Single file, multiple files and folder pickers", content = initOs())
-    numbers* = sectionSetting(display = "Spinners and sliders", content = initNumbers())
-    colors* = sectionSetting(display = "Color pickers", content = initColors())
+    # input* = inputSetting(display = "Input", default = "Hello World")
+    # input2* = inputSetting(
+    #   display = "Custom Input", hint = "Type...",
+    #   help = "Has a hint, 10 characters maximum and only accepts on return",
+    #   limits = 0..10, flags = @[ImGuiInputTextFlags.EnterReturnsTrue]
+    # )
+    # check* = checkSetting(display = "Checkbox", default = true)
+    # combo* = comboSetting(display = "Combo box", items = Sizes.toSeq, default = None)
+    # radio* = radioSetting(display = "Radio button", items = @[Big, Medium, Small], default = Medium)
+    # os* = sectionSetting(display = "File dialogs", help = "Single file, multiple files and folder pickers", content = initOs())
+    # numbers* = sectionSetting(display = "Spinners and sliders", content = initNumbers())
+    # colors* = sectionSetting(display = "Color pickers", content = initColors())
 
 proc decodeSettingsObj*(a: KdlNode, v: var object) =
   # echo "decoding settings ", a
@@ -344,7 +344,15 @@ type
     maximized* = false
     winpos* = (x: -1i32, y: -1i32) # < 0: center the window
     winsize* = (w: 600i32, h: 650i32)
+    forbidden*: OrderedTable[string, seq[string]]
+    lastSheet* = "Base"
+    lastFoodCol* = "O"
+    lastObservCol* = "M"
+    lastFile*: string
     settings* = initSettings()
+
+  ProcesssState* = enum
+    psUnstarted, psRunning, psFinished
 
   App* = object
     win*: GLFWWindow
@@ -352,9 +360,20 @@ type
     prefs*: KdlPrefs[Prefs] # These are the values that will be saved in the prefs file
     fonts*: array[Config.fonts.len, ptr ImFont]
     resources*: Table[string, string]
+    lastClipboard*: string # To share ImGui clipboard with GLFW clipboard
 
     maxLabelWidth*: float32 # For the settings modal
-    messageBoxResult*: FlowVar[Button]
+
+    currentFood*: string
+    foodBuf*: string # New food input buffer
+    currentObserv*: int
+    observBuf*: string # New observ input buffer
+    file*: tuple[val: string, flowvar: FlowVar[string]] # input
+    output*: tuple[val: string, flowvar: FlowVar[string]]
+    sheetBuf*, foodColBuf*, observColBuf*, outputBuf*: string
+    processState*: ProcesssState
+    errors*: seq[tuple[pos, food, observ: string]]
+    # processFlowvar*: FlowVar[void]
 
   ImageData* = tuple[image: seq[byte], width, height: int]
 

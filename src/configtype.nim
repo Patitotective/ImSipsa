@@ -15,17 +15,12 @@ proc font*(path: string, size: float32, glyphRanges = GlyphRanges.Default): Font
 
 type
   Config* = object
-    name* = "ImExample"
-    comment* = "ImExample is a simple Dear ImGui application example"
-    version* = "2.0.0"
-    website* = "https://github.com/Patitotective/ImTemplate"
+    name* = "ImAbast"
+    comment* = "ImAbast is a tool to validate some excel"
+    version* = "1.0.0"
+    website* = "https://github.com/Patitotective/ImAbast"
     authors* = [
       (name: "Patitotective", url: "https://github.com/Patitotective"),
-      ("Cristobal", "mailto:cristobalriaga@gmail.com"),
-      ("Omar Cornut", "https://github.com/ocornut"),
-      ("Beef, Yard, Rika", ""),
-      ("and the Nim community :]", ""),
-      ("Inu147", ""),
     ]
     categories* = ["Utility"]
 
@@ -36,11 +31,11 @@ type
     iconFontPath* = "assets/forkawesome-webfont.ttf"
     fonts* = [
       font("assets/ProggyVector Regular.ttf", 16f), # Other options are Roboto-Regular.ttf, Cousine-Regular.ttf or Karla-Regular.ttf
-      font("assets/NotoSansJP-Regular.otf", 16f, GlyphRanges.Japanese),
+      # font("assets/NotoSansJP-Regular.otf", 16f, GlyphRanges.Japanese),
     ]
 
     # AppImage
-    ghRepo* = (user: "Patitotective", repo: "ImTemplate").some
+    ghRepo* = typeof((user: "Patitotective", repo: "ImAbast")).none
     appstreamPath* = ""
 
     # Window

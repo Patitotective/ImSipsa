@@ -1,4 +1,4 @@
-import std/[typetraits, threadpool, strutils, tables, macros, os]
+import std/[typetraits, threadpool, strutils, tables, macros, os, math]
 import kdl, kdl/prefs
 import stb_image/read as stbi
 import nimgl/[imgui, glfw, opengl]
@@ -157,6 +157,43 @@ proc igCenterCursor*(size: ImVec2, alignX: float = 0.5f, alignY: float = 0.5f, a
   igCenterCursorX(size.x, alignX, avail.x)
   igCenterCursorY(size.y, alignY, avail.y)
 
+proc igSpinner*(label: string, radius: float, thickness: float32, color: uint32) = 
+  let window = igGetCurrentWindow()
+  if window.skipItems:
+    return
+  
+  let
+    context = igGetCurrentContext()
+    style = context.style
+    id = igGetID(label)
+  
+    pos = window.dc.cursorPos
+    size = ImVec2(x: radius * 2, y: (radius + style.framePadding.y) * 2)
+
+    bb = ImRect(min: pos, max: ImVec2(x: pos.x + size.x, y: pos.y + size.y));
+  igItemSize(bb, style.framePadding.y)
+
+  if not igItemAdd(bb, id):
+      return
+  
+  window.drawList.pathClear()
+  
+  let
+    numSegments = 30
+    start = abs(sin(context.time * 1.8f) * (numSegments - 5).float)
+  
+  let
+    aMin = PI * 2f * start / numSegments.float
+    aMax = PI * 2f * ((numSegments - 3) / numSegments).float
+
+    centre = ImVec2(x: pos.x + radius, y: pos.y + radius + style.framePadding.y)
+
+  for i in 0..<numSegments:
+    let a = aMin + i / numSegments * (aMax - aMin)
+    window.drawList.pathLineTo(ImVec2(x: centre.x + cos(a + context.time * 8) * radius, y: centre.y + sin(a + context.time * 8) * radius))
+
+  window.drawList.pathStroke(color, thickness = thickness)
+
 proc igHelpMarker*(text: string) =
   igTextDisabled("(?)")
   if igIsItemHovered():
@@ -165,6 +202,14 @@ proc igHelpMarker*(text: string) =
     igTextUnformatted(text)
     igPopTextWrapPos()
     igEndTooltip()
+
+proc igPushDisabled*() = 
+  igPushItemFlag(ImGuiItemFlags.Disabled, true)
+  igPushStyleVar(ImGuiStyleVar.Alpha, igGetStyle().alpha * 0.6)
+
+proc igPopDisabled*() = 
+  igPopItemFlag()
+  igPopStyleVar()
 
 proc newImFontConfig*(mergeMode = false): ImFontConfig =
   result.fontDataOwnedByAtlas = true
@@ -210,7 +255,7 @@ macro checkFlowVarsReady*(app: App, fields: varargs[untyped]): bool =
   # (app.field1.isNil or app.field1.isReady) and (app.field2.isNil or app.field2.isReady)
   for field in fields:
     let cond = quote do:
-      (`app`.`field`.isNil or `app`.`field`.isReady)
+      (`app`.`field`.flowvar.isNil or `app`.`field`.flowvar.isReady)
 
     if result.kind == nnkEmpty:
       result = cond
@@ -367,7 +412,7 @@ proc save*(a: var Settings) =
   saveSettingsObj(a)
 
 proc areThreadsFinished*(app: App): bool =
-  app.checkFlowVarsReady(messageBoxResult) and app.prefs[settings].checkFlowVarsReady()
+  app.checkFlowVarsReady(file, output) and app.prefs[settings].checkFlowVarsReady()
 
 proc drawBlockDialogModal*(app: App) =
   ## This modal is meant to block the app until all the FlowVar(s) are nil or ready
@@ -388,4 +433,23 @@ proc drawBlockDialogModal*(app: App) =
 
     igEndPopup()
 
+proc drawEditModal*(id: string, buffer: cstring, maxBuf = 100): bool = 
+  var center: ImVec2
+  getCenterNonUDT(center.addr, igGetMainViewport())
+  igSetNextWindowPos(center, Always, igVec2(0.5f, 0.5f))
+
+  let unusedOpen = true # Passing this parameter creates a close button
+  if igBeginPopupModal(cstring id, unusedOpen.unsafeAddr):
+    igSetNextItemWidth(igGetContentRegionAvail().x)
+    igInputText("##input", buffer, 100)
+    if igButton("OK"):
+      result = true
+      igCloseCurrentPopup()
+
+    igSameLine()
+
+    if igButton("Cancel"):
+      igCloseCurrentPopup()
+
+    igEndPopup()
 

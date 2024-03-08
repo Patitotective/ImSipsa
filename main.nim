@@ -1,4 +1,4 @@
-import std/[threadpool, strutils, strformat, os]
+import std/[threadpool, enumerate, strutils, strformat, os]
 
 import imstyle
 import openurl
@@ -7,7 +7,7 @@ import kdl, kdl/prefs
 import nimgl/[opengl, glfw]
 import nimgl/imgui, nimgl/imgui/[impl_opengl, impl_glfw]
 
-import src/[settingsmodal, utils, types, icons]
+import src/[settingsmodal, utils, types, icons, process]
 when defined(release):
   import resources
 
@@ -59,22 +59,107 @@ proc drawAboutModal(app: App) =
 
     igEndPopup()
 
+proc drawEditObservsModal(app: var App) = 
+  var center: ImVec2
+  getCenterNonUDT(center.addr, igGetMainViewport())
+  igSetNextWindowPos(center, Always, igVec2(0.5f, 0.5f))
+
+  let unusedOpen = true # Passing this parameter creates a close button
+
+  if igBeginPopupModal("Editar Observaciones###editObservs", unusedOpen.unsafeAddr):
+    if igBeginListBox("##observs", size = igVec2(igGetContentRegionAvail().x, 0)):
+      for e, observ in app.prefs[forbidden][app.currentFood].deepCopy:
+        if igSelectable(cstring &"{observ}##{e}"):
+          app.currentObserv = e
+          app.observBuf = newString(100, observ)
+          igOpenPopup("###editObserv")
+
+        if igBeginPopupContextItem():
+          if igMenuItem(cstring &"Delete {FA_TrashO}"):
+            echo (e: e, c: app.currentObserv)
+            app.prefs[forbidden][app.currentFood].delete(app.currentObserv)
+
+          igEndPopup()
+
+      if drawEditModal("Editar observacion###editObserv", cstring app.observBuf):
+        app.prefs[forbidden][app.currentFood][app.currentObserv] = app.observBuf.cleanString
+
+      igEndListBox()
+
+    if igButton("Add"):
+      app.prefs[forbidden][app.currentFood].add "Observacion"
+
+    igEndPopup()
+
+proc drawForbiddenModal(app: var App) = 
+  var center: ImVec2
+  getCenterNonUDT(center.addr, igGetMainViewport())
+  igSetNextWindowPos(center, Always, igVec2(0.5f, 0.5f))
+
+  let unusedOpen = true # Passing this parameter creates a close button
+  if igBeginPopupModal("Editar Tabla###editForbidden", unusedOpen.unsafeAddr):
+    if igBeginTable("##table", 2, makeFlags(ImGuiTableFlags.Borders, ImGuiTableFlags.RowBg, ImGuiTableFlags.Resizable)):
+      igTableSetupColumn("Alimento")
+      igTableSetupColumn("Observaciones")
+      igTableHeadersRow()
+
+      for e, (key, val) in enumerate app.prefs[forbidden].deepCopy.pairs:
+        igTableNextRow()
+
+        igTableNextColumn()
+        if igSelectable(cstring key, flags = ImGuiSelectableFlags.DontClosePopups):
+          app.currentFood = key
+          app.foodBuf = newString(100, key)
+          igOpenPopup("###editFood")
+
+        if igBeginPopupContextItem():
+          if igMenuItem(cstring &"Delete {FA_TrashO}"):
+            app.prefs[forbidden].del(key)
+
+          igEndPopup()
+
+        igTableNextColumn()
+        if igSelectable(cstring val.join(", "), flags = ImGuiSelectableFlags.DontClosePopups):
+          app.currentFood = key
+          igOpenPopup("###editObservs")
+
+        if igBeginPopupContextItem():
+          if igMenuItem(cstring &"Delete {FA_TrashO}"):
+            app.prefs[forbidden].del(key)
+          igEndPopup()
+
+      if drawEditModal("Editar alimento###editFood", cstring app.foodBuf):
+        app.prefs[forbidden][app.foodBuf.cleanString] = app.prefs[forbidden][app.currentFood]
+        app.prefs[forbidden].del(app.currentFood)
+
+      app.drawEditObservsModal()
+
+      igEndTable()
+
+    if igButton("Add"):
+      var n = 1
+      while &"Alimento #{n}" in app.prefs[forbidden]:
+        inc n
+
+      app.prefs[forbidden][&"Alimento #{n}"] = @["Observacion"]
+
+    igEndPopup()
+
 proc drawMainMenuBar(app: var App) =
-  var openAbout, openPrefs, openBlockdialog = false
+  var openAbout, openPrefs, openBlockdialog, openForbidden = false
 
   if igBeginMainMenuBar():
     if igBeginMenu("File"):
-      igMenuItem("Settings " & FA_Cog, "Ctrl+P", openPrefs.addr)
+      # igMenuItem("Settings " & FA_Cog, "Ctrl+P", openPrefs.addr)
+      if igMenuItem("Main screen", enabled = app.processState == psFinished):
+        app.errors.setLen(0)
+        app.processState = psUnstarted
       if igMenuItem("Quit " & FA_Times, "Ctrl+Q"):
         app.win.setWindowShouldClose(true)
       igEndMenu()
 
     if igBeginMenu("Edit"):
-      if igMenuItem("Hello"):
-        # If a messageBox hasn't been called or if a called messageBox has already been closed
-        if app.messageBoxResult.isNil or app.messageBoxResult.isReady():
-          app.messageBoxResult = spawn messageBox(app.config.name, "Hello, earthling. Wanna come with us?", DialogType.YesNo, IconType.Question, Button.Yes)
-          openBlockdialog = true
+      igMenuItem("Tabla##forbidden", shortcut = nil, p_selected = openForbidden.addr)
 
       igEndMenu()
 
@@ -96,11 +181,14 @@ proc drawMainMenuBar(app: var App) =
     igOpenPopup("###about")
   if openBlockdialog:
     igOpenPopup("###blockdialog")
+  if openForbidden:
+    igOpenPopup("###editForbidden")
 
   # These modals will only get drawn when igOpenPopup(name) are called, respectly
   app.drawAboutModal()
   app.drawSettingsmodal()
-  # app.drawBlockDialogModal()
+  app.drawBlockDialogModal()
+  app.drawForbiddenModal()
 
 proc drawMain(app: var App) = # Draw the main window
   let viewport = igGetMainViewport()
@@ -111,23 +199,87 @@ proc drawMain(app: var App) = # Draw the main window
   igSetNextWindowSize(viewport.workSize)
 
   if igBegin(cstring app.config.name, flags = makeFlags(ImGuiWindowFlags.NoResize, NoDecoration, NoMove)):
-    igText(FA_Info & " Application average %.3f ms/frame (%.1f FPS)", 1000f / igGetIO().framerate, igGetIO().framerate)
+    if app.processState == psUnstarted:
+      # Input
+      if not app.file.flowvar.isNil and app.file.flowvar.isReady and (let val = ^app.file.flowvar; val.len > 0):
+        app.file = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire its value it's not neccessary until it's spawned again
+        if app.output.val.len == 0:
+          let path = val.splitPath()
+          app.output.val = path.head / ("Procesado "  & path.tail)
 
-    if igButton("Click me"):
-      spawn notifyPopup(app.config.name, "Do not do that again", IconType.Warning)
+      igInputTextWithHint("##file", "No file selected", cstring app.file.val, uint app.file.val.len, flags = ImGuiInputTextFlags.ReadOnly)
+      igSameLine()
+      if igButton("Open " & FA_FolderOpen):
+        app.file.flowvar = spawn openFileDialog("Choose Input File", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
+        igOpenPopup("###blockdialog")
 
-    app.fonts[1].igPushFont()
-    igText("Unicode fonts (NotoSansJP-Regular.otf)")
-    igText("日本語の言葉 " & FA_SmileO)
-    igPopFont()
+      # Output
+      if not app.output.flowvar.isNil and app.output.flowvar.isReady and (let val = ^app.output.flowvar; val.len > 0):
+        app.output = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire it's value it's not neccessary until it's spawned again
+      
+      igInputTextWithHint("##output", "Output path", cstring app.output.val, uint app.output.val.len, flags = ImGuiInputTextFlags.ReadOnly)
+      igSameLine()
+      if igButton("Browse " & FA_FolderOpen):
+        app.output.flowvar = spawn saveFileDialog("Choose Output File", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
+        igOpenPopup("###blockdialog")
 
-    if not app.messageBoxResult.isNil and app.messageBoxResult.isReady:
-      if ^app.messageBoxResult == Button.Yes:
-        igText("Glad you said yes!")
-      else:
-        igText("Prepare yourself for the consequences...")
+      app.drawBlockDialogModal()
+    
+      # Other 
+      igInputText("Hoja##sheet", cstring app.sheetBuf, 100)
+      igInputText("Columna alimentos##foodsCol", cstring app.foodColBuf, 2)
+      igInputText("Columna observaciones##observCol", cstring app.observColBuf, 2)
+
+      if app.file.val.len == 0 or app.output.val.len == 0:
+        igPushDisabled()
+
+      if igButton("Procesar##process"):
+        spawn validateExcel(app.file.val, app.output.val, app.sheetBuf.cleanString, 
+          app.foodColBuf.cleanString, app.observColBuf.cleanString, app.prefs[forbidden])
+        app.processState = psRunning
+        # startProcess((path: app.file.val, outPath: app.output.val, 
+        #   sheet: app.sheetBuf.cleanString, foodsCol: app.foodColBuf.cleanString, 
+        #   observCol: app.observColBuf.cleanString, forbiddenTable: app.prefs[forbidden]
+        # ))
+
+      if app.file.val.len == 0 or app.output.val.len == 0:
+        igPopDisabled()
+
+    else:
+      if (let (ok, msg) = fromProcess.tryRecv; ok):
+        case msg.kind
+        of mkData:
+          app.errors.add (msg.pos, msg.food, msg.observ)
+        of mkError:
+          spawn notifyPopup(msg.title, msg.msg, IconType.Error)
+        of mkFinished:
+          app.processState = psFinished
+          spawn notifyPopup("Finished", &"Output: {app.output.val}", IconType.Info)
+
+      if igBeginListBox("##listbox", igGetContentRegionAvail()):
+        for e, error in app.errors:
+          igSelectable(cstring &"{error.pos}: Alimento {error.food} contiene {error.observ}##{e}")
+          if igBeginPopupContextItem():
+            if igMenuItem(cstring "Copy " & FA_FilesO):
+              app.win.setClipboardString(cstring error.pos)
+
+            igEndPopup()
+
+        if app.processState != psFinished:
+          igSpinner("##spinner", 30, 10, igGetColorU32(ButtonHovered))
+        igEndListBox()
 
   igEnd()
+
+  # GLFW clipboard -> ImGui clipboard
+  if (let clip = app.win.getClipboardString(); not clip.isNil and $clip != app.lastClipboard):
+    igSetClipboardText(clip)
+    app.lastClipboard = $clip
+
+  # ImGui clipboard -> GLFW clipboard
+  if (let clip = igGetClipboardText(); not clip.isNil and $clip != app.lastClipboard):
+    app.win.setClipboardString(clip)
+    app.lastClipboard = $clip
 
 proc render(app: var App) = # Called in the main loop
   # Poll and handle events (inputs, window resize, etc.)
@@ -156,6 +308,12 @@ proc render(app: var App) = # Called in the main loop
 
   app.win.makeContextCurrent()
   app.win.swapBuffers()
+  
+proc keyboardCallback(window: GLFWWindow; key: int32; scancode: int32; action: int32; mods: int32): void {.cdecl.} = 
+  # echo (k: key, s: scancode, a: action, m: mods)
+  # Quit on Ctrl+W
+  if key == GLFWKey.W.int32 and mods == GLFWModControl:
+    quit(-1)
 
 proc initWindow(app: var App) =
   glfwWindowHint(GLFWContextVersionMajor, 3)
@@ -199,6 +357,8 @@ proc initWindow(app: var App) =
   else:
     app.win.setWindowPos(app.prefs[winpos].x, app.prefs[winpos].y)
 
+  discard setKeyCallback(app.win, keyboardCallback)
+
 proc initApp(): App =
   when defined(release):
     result.resources = readResources()
@@ -227,7 +387,19 @@ proc initApp(): App =
     else:
       raise
 
+  result.processState = psUnstarted
+
+  result.sheetBuf = newString(100, result.prefs[lastSheet])
+  result.foodColBuf = newString(2, result.prefs[lastFoodCol])
+  result.observColBuf = newString(2, result.prefs[lastObservCol])
+  result.file = (val: result.prefs[lastFile], flowvar: nil)
+  if result.file.val.len > 0:
+    let path = result.file.val.splitPath()
+    result.output.val = path.head / ("Procesado "  & path.tail)
+
   result.updatePrefs()
+  
+  fromProcess.open()
 
 template initFonts(app: var App) =
   # Merge ForkAwesome icon font
@@ -254,6 +426,7 @@ template initFonts(app: var App) =
 
 proc terminate(app: var App) =
   sync() # Wait for spawned threads
+  fromProcess.close()
 
   var x, y, width, height: int32
 
@@ -263,6 +436,11 @@ proc terminate(app: var App) =
   app.prefs[winpos] = (x, y)
   app.prefs[winsize] = (width, height)
   app.prefs[maximized] = app.win.getWindowAttrib(GLFWMaximized) == GLFW_TRUE
+
+  app.prefs[lastSheet] = app.sheetBuf.cleanString()
+  app.prefs[lastFoodCol] = app.foodColBuf.cleanString()
+  app.prefs[lastObservCol] = app.observColBuf.cleanString()
+  app.prefs[lastFile] = app.file.val
 
   app.prefs.save()
 

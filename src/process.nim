@@ -18,17 +18,17 @@ type
 var fromProcess*: Channel[Msg] # Don't forget to open and close the channel
 # var processThread*: Thread[Args]
 
-template uniform(str: string): string = 
-  str.strip().toLowerAscii().multiReplace(("á", "a"), ("é", "e"), ("í", "í"), ("ó", "o"), ("ú", "u"), ("ñ", "n"))
+template uniform(str: string): string =
+  str.strip().toLowerAscii().multiReplace(("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n"))
 
-proc validateExcel*(path, outPath, sheetName, foodsCol, observCol: string, forbiddenTable: OrderedTable[string, seq[string]]) = #{.thread, nimcall.} = 
+proc validateExcel*(path, outPath, sheetName, foodsCol, observCol: string, forbiddenTable: OrderedTable[string, seq[string]]) = #{.thread, nimcall.} =
   if not fileExists(path):
     fromProcess.send Msg(kind: mkError, title: "File not found", msg: &"Could not find {path}")
     return
 
   let excel = readExcel(path)
   let sheet = excel.getSheet(sheetName)
-  
+
   if sheet.isNil:
     fromProcess.send Msg(kind: mkError, title: "Sheet not found", msg: &"Could not load {sheetName} sheet from {path}")
     return
@@ -46,7 +46,7 @@ proc validateExcel*(path, outPath, sheetName, foodsCol, observCol: string, forbi
             if observ.uniform in observCell:
               # var foodFont = row.styleFont(foodsCol)
               # foodFont.color = $colRed
-              
+
               row.style(foodsCol, fill = fillStyle(pattern = patternFillStyle(patternType = ptSolid, fgColor = $colRed)))
               row.copyStyle(foodsCol, &"{observCol}{row.rowNum}")
 
@@ -56,6 +56,6 @@ proc validateExcel*(path, outPath, sheetName, foodsCol, observCol: string, forbi
   excel.writeFile(outPath)
   fromProcess.send Msg(kind: mkFinished)
 
-# proc startProcess*(args: Args) = 
+# proc startProcess*(args: Args) =
 #   processThread.createThread(process, args)
-  
+

@@ -23,14 +23,14 @@ template uniform(str: string): string =
 
 proc validateExcel*(path, outPath, sheetName, foodsCol, observCol: string, forbiddenTable: OrderedTable[string, seq[string]]) = #{.thread, nimcall.} =
   if not fileExists(path):
-    fromProcess.send Msg(kind: mkError, title: "File not found", msg: &"Could not find {path}")
+    fromProcess.send Msg(kind: mkError, title: "Archivo no encontrado", msg: &"No pudo encontrar {path}")
     return
 
   let excel = readExcel(path)
   let sheet = excel.getSheet(sheetName)
 
   if sheet.isNil:
-    fromProcess.send Msg(kind: mkError, title: "Sheet not found", msg: &"Could not load {sheetName} sheet from {path}")
+    fromProcess.send Msg(kind: mkError, title: "Hoja no encontrada", msg: &"No pude cargar la hoja {sheetName} de {path}")
     return
 
   for row in sheet.rows:

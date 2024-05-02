@@ -75,7 +75,7 @@ proc drawEditObservsModal(app: var App) =
           igOpenPopup("###editObserv")
 
         if igBeginPopupContextItem():
-          if igMenuItem(cstring &"Delete {FA_TrashO}"):
+          if igMenuItem(cstring &"Borrar {FA_TrashO}"):
             echo (e: e, c: app.currentObserv)
             app.prefs[forbidden][app.currentFood].delete(app.currentObserv)
 
@@ -113,7 +113,7 @@ proc drawForbiddenModal(app: var App) =
           igOpenPopup("###editFood")
 
         if igBeginPopupContextItem():
-          if igMenuItem(cstring &"Delete {FA_TrashO}"):
+          if igMenuItem(cstring &"Borrar {FA_TrashO}"):
             app.prefs[forbidden].del(key)
 
           igEndPopup()
@@ -124,7 +124,7 @@ proc drawForbiddenModal(app: var App) =
           igOpenPopup("###editObservs")
 
         if igBeginPopupContextItem():
-          if igMenuItem(cstring &"Delete {FA_TrashO}"):
+          if igMenuItem(cstring &"Borrar {FA_TrashO}"):
             app.prefs[forbidden].del(key)
           igEndPopup()
 
@@ -136,7 +136,7 @@ proc drawForbiddenModal(app: var App) =
 
       igEndTable()
 
-    if igButton("Add"):
+    if igButton("Añadir"):
       var n = 1
       while &"Alimento #{n}" in app.prefs[forbidden]:
         inc n
@@ -149,22 +149,24 @@ proc drawMainMenuBar(app: var App) =
   var openAbout, openPrefs, openBlockdialog, openForbidden = false
 
   if igBeginMainMenuBar():
-    if igBeginMenu("File"):
+    if igBeginMenu("Archivo"):
       # igMenuItem("Settings " & FA_Cog, "Ctrl+P", openPrefs.addr)
-      if igMenuItem("Main screen", enabled = app.processState == psFinished):
+      if igMenuItem("Volver al inicio", enabled = app.processState == psFinished):
         app.errors.setLen(0)
+        app.processError.setLen(0)
         app.processState = psUnstarted
-      if igMenuItem("Quit " & FA_Times, "Ctrl+Q"):
+
+      if igMenuItem("Cerrar " & FA_Times, "Ctrl+Q"):
         app.win.setWindowShouldClose(true)
       igEndMenu()
 
-    if igBeginMenu("Edit"):
+    if igBeginMenu("Editar"):
       igMenuItem("Tabla##forbidden", shortcut = nil, p_selected = openForbidden.addr)
 
       igEndMenu()
 
-    if igBeginMenu("About"):
-      if igMenuItem("Website " & FA_ExternalLink, enabled = app.config.website.len > 0):
+    if igBeginMenu("Acerca"):
+      if igMenuItem("Sitio web " & FA_ExternalLink, enabled = app.config.website.len > 0):
         app.config.website.openurl()
 
       igMenuItem(cstring "About " & app.config.name, shortcut = nil, p_selected = openAbout.addr)
@@ -176,7 +178,7 @@ proc drawMainMenuBar(app: var App) =
   # See https://github.com/ocornut/imgui/issues/331#issuecomment-751372071
   if openPrefs:
     initCache(app.prefs[settings])
-    igOpenPopup("Settings")
+    igOpenPopup("Configuracion")
   if openAbout:
     igOpenPopup("###about")
   if openBlockdialog:
@@ -207,20 +209,20 @@ proc drawMain(app: var App) = # Draw the main window
           let path = val.splitPath()
           app.output.val = path.head / ("Procesado "  & path.tail)
 
-      igInputTextWithHint("##file", "No file selected", cstring app.file.val, uint app.file.val.len, flags = ImGuiInputTextFlags.ReadOnly)
+      igInputTextWithHint("##file", "Ningun archivo seleccionado", cstring app.file.val, uint app.file.val.len, flags = ImGuiInputTextFlags.ReadOnly)
       igSameLine()
-      if igButton("Open " & FA_FolderOpen):
-        app.file.flowvar = spawn openFileDialog("Choose Input File", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
+      if igButton("Examinar " & FA_FolderOpen):
+        app.file.flowvar = spawn openFileDialog("Elige un archivo", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
         igOpenPopup("###blockdialog")
 
       # Output
       if not app.output.flowvar.isNil and app.output.flowvar.isReady and (let val = ^app.output.flowvar; val.len > 0):
         app.output = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire it's value it's not neccessary until it's spawned again
       
-      igInputTextWithHint("##output", "Output path", cstring app.output.val, uint app.output.val.len, flags = ImGuiInputTextFlags.ReadOnly)
+      igInputTextWithHint("##output", "Archivo de resultado", cstring app.output.val, uint app.output.val.len, flags = ImGuiInputTextFlags.ReadOnly)
       igSameLine()
-      if igButton("Browse " & FA_FolderOpen):
-        app.output.flowvar = spawn saveFileDialog("Choose Output File", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
+      if igButton("Examinar " & FA_FolderOpen):
+        app.output.flowvar = spawn saveFileDialog("Elige el archivo de resultado", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
         igOpenPopup("###blockdialog")
 
       app.drawBlockDialogModal()
@@ -252,15 +254,25 @@ proc drawMain(app: var App) = # Draw the main window
           app.errors.add (msg.pos, msg.food, msg.observ)
         of mkError:
           spawn notifyPopup(msg.title, msg.msg, IconType.Error)
+          app.processError = &"{msg.title}: {msg.msg}"
+          app.processState = psFinished
         of mkFinished:
           app.processState = psFinished
-          spawn notifyPopup("Finished", &"Output: {app.output.val}", IconType.Info)
+          spawn notifyPopup("Termino", &"Resultado: {app.output.val}", IconType.Info)
+
+      if app.processState == psFinished:
+        igText("Completado")
+
+      if app.processError.len > 0:
+        igPushTextWrapPos(igGetWindowWidth())
+        igTextWrapped(cstring app.processError)
+        igPopTextWrapPos()
 
       if igBeginListBox("##listbox", igGetContentRegionAvail()):
         for e, error in app.errors:
           igSelectable(cstring &"{error.pos}: Alimento {error.food} contiene {error.observ}##{e}")
           if igBeginPopupContextItem():
-            if igMenuItem(cstring "Copy " & FA_FilesO):
+            if igMenuItem(cstring "Copia " & FA_FilesO):
               app.win.setClipboardString(cstring error.pos)
 
             igEndPopup()

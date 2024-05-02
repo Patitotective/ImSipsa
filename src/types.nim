@@ -374,6 +374,7 @@ type
     processState*: ProcesssState
     errors*: seq[tuple[pos, food, observ: string]]
     # processFlowvar*: FlowVar[void]
+    processError*: string
 
   ImageData* = tuple[image: seq[byte], width, height: int]
 

@@ -15,7 +15,7 @@ requires "imstyle >= 3.0.0"
 requires "openurl >= 2.0.4"
 requires "tinydialogs >= 1.0.0"
 requires "constructor >= 1.2.0"
-requires "excelin >= 0.5.4"
+requires "xl >= 1.1.0"
 
 import std/[strformat, options]
 import src/configtype

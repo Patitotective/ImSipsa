@@ -7,7 +7,9 @@ import kdl, kdl/prefs
 import nimgl/[opengl, glfw]
 import nimgl/imgui, nimgl/imgui/[impl_opengl, impl_glfw]
 
-import src/[settingsmodal, utils, types, icons, process]
+import src/[settingsmodal, utils, types, icons, ali_process]
+import src/indicador/[document, data]
+
 when defined(release):
   import resources
 
@@ -68,26 +70,25 @@ proc drawEditObservsModal(app: var App) =
 
   if igBeginPopupModal("Editar Observaciones###editObservs", unusedOpen.unsafeAddr):
     if igBeginListBox("##observs", size = igVec2(igGetContentRegionAvail().x, 0)):
-      for e, observ in app.prefs[forbidden][app.currentFood].deepCopy:
+      for e, observ in app.prefs[alitab].forbidden[app.alitab.currentFood].deepCopy:
         if igSelectable(cstring &"{observ}##{e}"):
-          app.currentObserv = e
-          app.observBuf = newString(100, observ)
+          app.alitab.currentObserv = e
+          app.alitab.observBuf = newString(100, observ)
           igOpenPopup("###editObserv")
 
         if igBeginPopupContextItem():
           if igMenuItem(cstring &"Borrar {FA_TrashO}"):
-            echo (e: e, c: app.currentObserv)
-            app.prefs[forbidden][app.currentFood].delete(app.currentObserv)
+            app.prefs[alitab].forbidden[app.alitab.currentFood].delete(app.alitab.currentObserv)
 
           igEndPopup()
 
-      if drawEditModal("Editar observacion###editObserv", cstring app.observBuf):
-        app.prefs[forbidden][app.currentFood][app.currentObserv] = app.observBuf.cleanString
+      if drawEditModal("Editar observacion###editObserv", cstring app.alitab.observBuf):
+        app.prefs[alitab].forbidden[app.alitab.currentFood][app.alitab.currentObserv] = app.alitab.observBuf.cleanString
 
       igEndListBox()
 
     if igButton("Add"):
-      app.prefs[forbidden][app.currentFood].add "Observacion"
+      app.prefs[alitab].forbidden[app.alitab.currentFood].add "Observacion"
 
     igEndPopup()
 
@@ -103,34 +104,34 @@ proc drawForbiddenModal(app: var App) =
       igTableSetupColumn("Observaciones")
       igTableHeadersRow()
 
-      for e, (key, val) in enumerate app.prefs[forbidden].deepCopy.pairs:
+      for e, (key, val) in enumerate app.prefs[alitab].forbidden.deepCopy.pairs:
         igTableNextRow()
 
         igTableNextColumn()
         if igSelectable(cstring key, flags = ImGuiSelectableFlags.DontClosePopups):
-          app.currentFood = key
-          app.foodBuf = newString(100, key)
+          app.alitab.currentFood = key
+          app.alitab.foodBuf = newString(100, key)
           igOpenPopup("###editFood")
 
         if igBeginPopupContextItem():
           if igMenuItem(cstring &"Borrar {FA_TrashO}"):
-            app.prefs[forbidden].del(key)
+            app.prefs[alitab].forbidden.del(key)
 
           igEndPopup()
 
         igTableNextColumn()
         if igSelectable(cstring val.join(", "), flags = ImGuiSelectableFlags.DontClosePopups):
-          app.currentFood = key
+          app.alitab.currentFood = key
           igOpenPopup("###editObservs")
 
         if igBeginPopupContextItem():
           if igMenuItem(cstring &"Borrar {FA_TrashO}"):
-            app.prefs[forbidden].del(key)
+            app.prefs[alitab].forbidden.del(key)
           igEndPopup()
 
-      if drawEditModal("Editar alimento###editFood", cstring app.foodBuf):
-        app.prefs[forbidden][app.foodBuf.cleanString] = app.prefs[forbidden][app.currentFood]
-        app.prefs[forbidden].del(app.currentFood)
+      if drawEditModal("Editar alimento###editFood", cstring app.alitab.foodBuf):
+        app.prefs[alitab].forbidden[app.alitab.foodBuf.cleanString] = app.prefs[alitab].forbidden[app.alitab.currentFood]
+        app.prefs[alitab].forbidden.del(app.alitab.currentFood)
 
       app.drawEditObservsModal()
 
@@ -138,10 +139,10 @@ proc drawForbiddenModal(app: var App) =
 
     if igButton("Añadir"):
       var n = 1
-      while &"Alimento #{n}" in app.prefs[forbidden]:
+      while &"Alimento #{n}" in app.prefs[alitab].forbidden:
         inc n
 
-      app.prefs[forbidden][&"Alimento #{n}"] = @["Observacion"]
+      app.prefs[alitab].forbidden[&"Alimento #{n}"] = @["Observacion"]
 
     igEndPopup()
 
@@ -151,10 +152,10 @@ proc drawMainMenuBar(app: var App) =
   if igBeginMainMenuBar():
     if igBeginMenu("Archivo"):
       # igMenuItem("Settings " & FA_Cog, "Ctrl+P", openPrefs.addr)
-      if igMenuItem("Volver al inicio", enabled = app.processState == psFinished):
-        app.errors.setLen(0)
-        app.processError.setLen(0)
-        app.processState = psUnstarted
+      if igMenuItem("Volver al inicio", enabled = app.currentTab == 0 and app.alitab.processState == psFinished):
+        app.alitab.errors.setLen(0)
+        app.alitab.processError.setLen(0)
+        app.alitab.processState = psUnstarted
 
       if igMenuItem("Cerrar " & FA_Times, "Ctrl+Q"):
         app.win.setWindowShouldClose(true)
@@ -192,6 +193,137 @@ proc drawMainMenuBar(app: var App) =
   app.drawBlockDialogModal()
   app.drawForbiddenModal()
 
+proc drawAlimentosTab(app: var App) = 
+  if app.alitab.processState == psUnstarted:
+    # Input
+    if not app.alitab.file.flowvar.isNil and app.alitab.file.flowvar.isReady and (let val = ^app.alitab.file.flowvar; val.len > 0):
+      app.alitab.file = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire its value it's not neccessary until it's spawned again
+
+    igInputTextWithHint("##file", "Ningun archivo seleccionado", cstring app.alitab.file.val, uint app.alitab.file.val.len, flags = ImGuiInputTextFlags.ReadOnly)
+    igSameLine()
+    if igButton("Examinar " & FA_FolderOpen):
+      app.alitab.file.flowvar = spawn openFileDialog("Elige un archivo", getCurrentDir() / "\0", ["*.csv"], "CSV")
+      igOpenPopup("###blockdialog")
+
+    app.drawBlockDialogModal()
+  
+    # Other 
+    igInputText("Columna alimentos##foodsCol", cstring app.alitab.foodColBuf, 100)
+    igInputText("Columna observaciones##observCol", cstring app.alitab.observColBuf, 100)
+
+    if app.alitab.file.val.len == 0 or app.alitab.foodColBuf.cleanString.len == 0 or app.alitab.observColBuf.cleanString.len == 0:
+      igPushDisabled()
+
+    if igButton("Procesar##process"):
+      spawn validateExcel(app.alitab.file.val, app.alitab.foodColBuf.cleanString, 
+        app.alitab.observColBuf.cleanString, app.prefs[alitab].forbidden)
+      app.alitab.processState = psRunning
+
+    if app.alitab.file.val.len == 0 or app.alitab.foodColBuf.cleanString.len == 0 or app.alitab.observColBuf.cleanString.len == 0:
+      igPopDisabled()
+
+  else:
+    if (let (ok, msg) = aliChannel.tryRecv; ok):
+      case msg.kind
+      of mkData:
+        app.alitab.errors.add (msg.pos, msg.food, msg.observ)
+      of mkError:
+        spawn notifyPopup("ImSipsa", msg.msg, IconType.Error)
+        app.alitab.processError = $msg.msg
+        app.alitab.processState = psFinished
+      of mkFinished:
+        app.alitab.processState = psFinished
+        spawn notifyPopup("ImSipsa", &"El archivo ha sido procesado", IconType.Info)
+
+    if app.alitab.processState == psFinished:
+      igText("Completado")
+
+    if app.alitab.processError.len > 0:
+      igPushTextWrapPos(igGetWindowWidth())
+      igTextWrapped(cstring app.alitab.processError)
+      igPopTextWrapPos()
+
+    if igBeginListBox("##listbox", igGetContentRegionAvail()):
+      for e, error in app.alitab.errors:
+        igSelectable(cstring &"{error.pos}: Alimento {error.food} contiene {error.observ}##{e}")
+        if igBeginPopupContextItem():
+          if igMenuItem(cstring "Copiar " & FA_FilesO):
+            app.win.setClipboardString(cstring error.pos)
+
+          igEndPopup()
+
+      if app.alitab.processState != psFinished:
+        igSpinner("##spinner", 30, 10, igGetColorU32(ButtonHovered))
+      igEndListBox()
+
+proc drawIndicadorTab(app: var App) = 
+  if app.inditab.processState == psUnstarted:
+    # Input
+    if not app.inditab.file.flowvar.isNil and app.inditab.file.flowvar.isReady and (let val = ^app.inditab.file.flowvar; val.len > 0):
+      app.inditab.file = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire its value it's not neccessary until it's spawned again
+
+    igInputTextWithHint("##file", "Ningun archivo seleccionado", cstring app.inditab.file.val, uint app.inditab.file.val.len, flags = ImGuiInputTextFlags.ReadOnly)
+    igSameLine()
+    if igButton("Examinar " & FA_FolderOpen):
+      app.inditab.file.flowvar = spawn openFileDialog("Elige un archivo", getCurrentDir() / "\0", ["*.csv"], "CSV")
+      igOpenPopup("###blockdialog")
+
+    app.drawBlockDialogModal()
+  
+    # Other 
+    igInputText("Formato de fecha##dateFormat", cstring app.inditab.dateFormatBuf, 100)
+
+    if app.inditab.file.val.len == 0 or app.inditab.dateFormatBuf.cleanString.len == 0:
+      igPushDisabled()
+
+    if igButton("Generar##generar"):
+      spawn generateDocument(app.inditab.dateFormatBuf.cleanString, app.inditab.file.val)
+      app.inditab.processState = psRunning
+
+    if app.inditab.file.val.len == 0 or app.inditab.dateFormatBuf.cleanString.len == 0:
+      igPopDisabled()
+
+  else:
+    if (let (ok, msg) = indiChannel.tryRecv; ok):
+      case msg.kind
+      of mkInfo:
+        app.indiTab.log.add (msg: msg.info, extraInfo: false)
+      of mkExtraInfo:
+        app.indiTab.log.add (msg: msg.extrainfo, extraInfo: true)
+      of mkFinishData: discard
+      of mkErroMsg:
+        spawn notifyPopup("ImSipsa", msg.errorMsg, IconType.Error)
+        app.inditab.processError = msg.errorMsg
+        app.inditab.processState = psFinished
+      of mkFinishDoc:
+        app.inditab.processState = psFinished
+        spawn notifyPopup("ImSipsa", &"El documento ha sido generado", IconType.Info)
+
+    if app.inditab.processState == psFinished:
+      igText("Completado")
+
+    if app.inditab.processError.len > 0:
+      igPushTextWrapPos(igGetWindowWidth())
+      igTextWrapped(cstring app.inditab.processError)
+      igPopTextWrapPos()
+
+    igCheckbox("Mostrar informacion extra", app.inditab.showExtraInfo.addr)
+
+    if igBeginListBox("##listbox", igGetContentRegionAvail()):
+      for e, msg in app.inditab.log:
+        if not msg.extrainfo or app.inditab.showExtraInfo:
+          igSelectable(cstring &"{msg.msg}##{e}")
+
+        if igBeginPopupContextItem():
+          if igMenuItem(cstring "Copiar " & FA_FilesO):
+            app.win.setClipboardString(cstring msg.msg)
+
+          igEndPopup()
+
+      if app.inditab.processState != psFinished:
+        igSpinner("##spinner", 30, 10, igGetColorU32(ButtonHovered))
+      igEndListBox()
+
 proc drawMain(app: var App) = # Draw the main window
   let viewport = igGetMainViewport()
 
@@ -201,86 +333,16 @@ proc drawMain(app: var App) = # Draw the main window
   igSetNextWindowSize(viewport.workSize)
 
   if igBegin(cstring app.config.name, flags = makeFlags(ImGuiWindowFlags.NoResize, NoDecoration, NoMove)):
-    if app.processState == psUnstarted:
-      # Input
-      if not app.file.flowvar.isNil and app.file.flowvar.isReady and (let val = ^app.file.flowvar; val.len > 0):
-        app.file = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire its value it's not neccessary until it's spawned again
-        if app.output.val.len == 0:
-          let path = val.splitPath()
-          app.output.val = path.head / ("Procesado "  & path.tail)
-
-      igInputTextWithHint("##file", "Ningun archivo seleccionado", cstring app.file.val, uint app.file.val.len, flags = ImGuiInputTextFlags.ReadOnly)
-      igSameLine()
-      if igButton("Examinar " & FA_FolderOpen):
-        app.file.flowvar = spawn openFileDialog("Elige un archivo", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
-        igOpenPopup("###blockdialog")
-
-      # Output
-      if not app.output.flowvar.isNil and app.output.flowvar.isReady and (let val = ^app.output.flowvar; val.len > 0):
-        app.output = (val: val, flowvar: nil) # Here we set flowvar to nil because once we acquire it's value it's not neccessary until it's spawned again
-      
-      igInputTextWithHint("##output", "Archivo de resultado", cstring app.output.val, uint app.output.val.len, flags = ImGuiInputTextFlags.ReadOnly)
-      igSameLine()
-      if igButton("Examinar " & FA_FolderOpen):
-        app.output.flowvar = spawn saveFileDialog("Elige el archivo de resultado", getCurrentDir() / "\0", ["*.xlsx"], "Excel 2007-365")
-        igOpenPopup("###blockdialog")
-
-      app.drawBlockDialogModal()
-    
-      # Other 
-      igInputText("Hoja##sheet", cstring app.sheetBuf, 100)
-      igInputText("Columna alimentos##foodsCol", cstring app.foodColBuf, 2)
-      igInputText("Columna observaciones##observCol", cstring app.observColBuf, 2)
-
-      if app.file.val.len == 0 or app.output.val.len == 0:
-        igPushDisabled()
-
-      if igButton("Procesar##process"):
-        spawn validateExcel(app.file.val, app.output.val, app.sheetBuf.cleanString, 
-          app.foodColBuf.cleanString, app.observColBuf.cleanString, app.prefs[forbidden])
-        app.processState = psRunning
-        # startProcess((path: app.file.val, outPath: app.output.val, 
-        #   sheet: app.sheetBuf.cleanString, foodsCol: app.foodColBuf.cleanString, 
-        #   observCol: app.observColBuf.cleanString, forbiddenTable: app.prefs[forbidden]
-        # ))
-
-      if app.file.val.len == 0 or app.output.val.len == 0:
-        igPopDisabled()
-
-    else:
-      if (let (ok, msg) = fromProcess.tryRecv; ok):
-        case msg.kind
-        of mkData:
-          app.errors.add (msg.pos, msg.food, msg.observ)
-        of mkError:
-          spawn notifyPopup(msg.title, msg.msg, IconType.Error)
-          app.processError = &"{msg.title}: {msg.msg}"
-          app.processState = psFinished
-        of mkFinished:
-          app.processState = psFinished
-          spawn notifyPopup("Termino", &"Resultado: {app.output.val}", IconType.Info)
-
-      if app.processState == psFinished:
-        igText("Completado")
-
-      if app.processError.len > 0:
-        igPushTextWrapPos(igGetWindowWidth())
-        igTextWrapped(cstring app.processError)
-        igPopTextWrapPos()
-
-      if igBeginListBox("##listbox", igGetContentRegionAvail()):
-        for e, error in app.errors:
-          igSelectable(cstring &"{error.pos}: Alimento {error.food} contiene {error.observ}##{e}")
-          if igBeginPopupContextItem():
-            if igMenuItem(cstring "Copia " & FA_FilesO):
-              app.win.setClipboardString(cstring error.pos)
-
-            igEndPopup()
-
-        if app.processState != psFinished:
-          igSpinner("##spinner", 30, 10, igGetColorU32(ButtonHovered))
-        igEndListBox()
-
+    if igBeginTabBar("##tabs"):      
+      if igBeginTabItem("Revision Clasificacion Alimentos"):
+        app.currentTab = 0
+        app.drawAlimentosTab()
+        igEndTabItem()
+      if igBeginTabItem("Generador Indicador"):
+        app.currentTab = 1
+        app.drawIndicadorTab()
+        igEndTabItem()
+      igEndTabBar()
   igEnd()
 
   # GLFW clipboard -> ImGui clipboard
@@ -399,19 +461,19 @@ proc initApp(): App =
     else:
       raise
 
-  result.processState = psUnstarted
+  result.alitab.processState = psUnstarted
 
-  result.sheetBuf = newString(100, result.prefs[lastSheet])
-  result.foodColBuf = newString(2, result.prefs[lastFoodCol])
-  result.observColBuf = newString(2, result.prefs[lastObservCol])
-  result.file = (val: result.prefs[lastFile], flowvar: nil)
-  if result.file.val.len > 0:
-    let path = result.file.val.splitPath()
-    result.output.val = path.head / ("Procesado "  & path.tail)
+  result.alitab.foodColBuf = newString(100, result.prefs[alitab].lastFoodCol)
+  result.alitab.observColBuf = newString(100, result.prefs[alitab].lastObservCol)
+  result.alitab.file = (val: result.prefs[alitab].lastFile, flowvar: nil)
+
+  result.inditab.file = (val: result.prefs[inditab].lastFile, flowvar: nil)
+  result.inditab.dateFormatBuf = newString(100, result.prefs[inditab].lastDateFormat)
 
   result.updatePrefs()
   
-  fromProcess.open()
+  aliChannel.open()
+  indiChannel.open()
 
 template initFonts(app: var App) =
   # Merge ForkAwesome icon font
@@ -438,7 +500,8 @@ template initFonts(app: var App) =
 
 proc terminate(app: var App) =
   sync() # Wait for spawned threads
-  fromProcess.close()
+  aliChannel.close()
+  indiChannel.close()
 
   var x, y, width, height: int32
 
@@ -449,10 +512,12 @@ proc terminate(app: var App) =
   app.prefs[winsize] = (width, height)
   app.prefs[maximized] = app.win.getWindowAttrib(GLFWMaximized) == GLFW_TRUE
 
-  app.prefs[lastSheet] = app.sheetBuf.cleanString()
-  app.prefs[lastFoodCol] = app.foodColBuf.cleanString()
-  app.prefs[lastObservCol] = app.observColBuf.cleanString()
-  app.prefs[lastFile] = app.file.val
+  app.prefs[alitab].lastFoodCol = app.alitab.foodColBuf.cleanString()
+  app.prefs[alitab].lastObservCol = app.alitab.observColBuf.cleanString()
+  app.prefs[alitab].lastFile = app.alitab.file.val
+
+  app.prefs[inditab].lastDateFormat = app.inditab.dateFormatBuf.cleanString()
+  app.prefs[inditab].lastFile = app.inditab.file.val
 
   app.prefs.save()
 

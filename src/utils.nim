@@ -290,6 +290,9 @@ proc checkFlowVarsReady*(s: Settings): bool =
   # (app.field1.isNil or app.field1.isReady) and (app.field2.isNil or app.field2.isReady)
   checkSettingsFlowVarsReadyImpl(s)
 
+proc areThreadsFinished*(app: App): bool =
+  (app.alitab.file.flowvar.isNil or app.alitab.file.flowvar.isReady) and app.prefs[settings].checkFlowVarsReady()
+
 proc initCacheSettingsObj(a: var object)
 proc saveSettingsObj(a: var object)
 
@@ -411,9 +414,6 @@ proc save*(a: var Settings) =
   ## Sets all a's current values to the cache values (`inputVal = inputCache`)
   saveSettingsObj(a)
 
-proc areThreadsFinished*(app: App): bool =
-  app.checkFlowVarsReady(file, output) and app.prefs[settings].checkFlowVarsReady()
-
 proc drawBlockDialogModal*(app: App) =
   ## This modal is meant to block the app until all the FlowVar(s) are nil or ready
   var center: ImVec2
@@ -452,4 +452,3 @@ proc drawEditModal*(id: string, buffer: cstring, maxBuf = 100): bool =
       igCloseCurrentPopup()
 
     igEndPopup()
-

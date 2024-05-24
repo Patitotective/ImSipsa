@@ -340,19 +340,48 @@ proc encodeKdl*(a: Settings, v: var KdlNode, name: string) =
   v = initKNode(name, children = encodeSettingsObj(a))
 
 type
+  AliPrefs* {.defaults: {defExported}.} = object
+    forbidden*: OrderedTable[string, seq[string]]
+    lastFoodCol* = "Ali"
+    lastObservCol* = "Observaciones"
+    lastFile*: string
+
+  IndiPrefs* {.defaults: {defExported}.} = object
+    lastDateFormat* = "dd/MM/yy"
+    lastFile*: string
+
   Prefs* {.defaults: {defExported}.} = object
     maximized* = false
     winpos* = (x: -1i32, y: -1i32) # < 0: center the window
     winsize* = (w: 600i32, h: 650i32)
-    forbidden*: OrderedTable[string, seq[string]]
-    lastSheet* = "Base"
-    lastFoodCol* = "O"
-    lastObservCol* = "M"
-    lastFile*: string
+    alitab* = initAliPrefs()
+    inditab* = initIndiPrefs()
     settings* = initSettings()
 
   ProcesssState* = enum
     psUnstarted, psRunning, psFinished
+
+  Alimentos* = object
+    currentFood*: string
+    foodBuf*: string # New food input buffer
+    currentObserv*: int
+    observBuf*: string # New observ input buffer
+    file*: tuple[val: string, flowvar: FlowVar[string]] # input
+    foodColBuf*, observColBuf*: string
+    processState*: ProcesssState
+    errors*: seq[tuple[pos, food, observ: string]]
+    # processFlowvar*: FlowVar[void]
+    processError*: string
+
+  Message* = tuple[msg: string, extrainfo: bool]
+
+  Indicador* = object
+    file*: tuple[val: string, flowvar: FlowVar[string]] # input
+    dateFormatBuf*: string
+    processState*: ProcesssState
+    processError*: string
+    showExtraInfo*: bool
+    log*: seq[Message]
 
   App* = object
     win*: GLFWWindow
@@ -363,18 +392,9 @@ type
     lastClipboard*: string # To share ImGui clipboard with GLFW clipboard
 
     maxLabelWidth*: float32 # For the settings modal
-
-    currentFood*: string
-    foodBuf*: string # New food input buffer
-    currentObserv*: int
-    observBuf*: string # New observ input buffer
-    file*: tuple[val: string, flowvar: FlowVar[string]] # input
-    output*: tuple[val: string, flowvar: FlowVar[string]]
-    sheetBuf*, foodColBuf*, observColBuf*, outputBuf*: string
-    processState*: ProcesssState
-    errors*: seq[tuple[pos, food, observ: string]]
-    # processFlowvar*: FlowVar[void]
-    processError*: string
+    alitab*: Alimentos
+    inditab*: Indicador
+    currentTab*: int
 
   ImageData* = tuple[image: seq[byte], width, height: int]
 

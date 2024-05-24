@@ -16,6 +16,9 @@ requires "openurl >= 2.0.4"
 requires "tinydialogs >= 1.0.0"
 requires "constructor >= 1.2.0"
 requires "excelin >= 0.5.4"
+requires "datamancer >= 0.4.2"
+requires "https://github.com/Patitotective/minidocx-nim/ >= 0.1.0"
+requires "https://github.com/Patitotective/pretty/ >= 0.2.0"
 
 import std/[strformat, options]
 import src/configtype

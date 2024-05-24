@@ -291,7 +291,9 @@ proc checkFlowVarsReady*(s: Settings): bool =
   checkSettingsFlowVarsReadyImpl(s)
 
 proc areThreadsFinished*(app: App): bool =
-  (app.alitab.file.flowvar.isNil or app.alitab.file.flowvar.isReady) and app.prefs[settings].checkFlowVarsReady()
+  (app.alitab.file.flowvar.isNil or app.alitab.file.flowvar.isReady) and 
+  (app.inditab.file.flowvar.isNil or app.inditab.file.flowvar.isReady) and 
+  app.prefs[settings].checkFlowVarsReady()
 
 proc initCacheSettingsObj(a: var object)
 proc saveSettingsObj(a: var object)

@@ -219,24 +219,37 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
 
   block p4:
     var p = doc.appendParagraph()
-    var r = p.appendRun((&"Así, los {gTubRaiPla} $# su oferta $#, las {gFrutas} $# su acopio en $#, " &
-    &"en cambio las {gVerdHort} $# $# y el abastecimiento de la categoría de {gOtros} $# $#.") % [
-      if weeksGruposDifference[gTubRaiPla] > 0:
+    let order = 
+      if secondWeekIncreased:
+        SortOrder.Descending
+      else:
+        SortOrder.Ascending
+
+    let gruposSorted = sorted(Grupo.toSeq, proc(x, y: Grupo): int = cmp(weeksGruposDifference[x], weeksGruposDifference[y]), order)
+    assert gruposSorted.len == 4
+
+    var r = p.appendRun((&"Así, $# $# su oferta $#, $# $# su acopio en $#, " &
+    &"en cambio $# $# $# y el abastecimiento de $# $# $#.") % [
+      &"{gruposArticle[gruposSorted[0]]} {gruposSorted[0]}",
+      if weeksGruposDifference[gruposSorted[0]] > 0:
         "aumentaron"
       else: "disminuyeron",
-      myFormatFloat(abs(weeksGruposDifference[gTubRaiPla])),
-      if weeksGruposDifference[gFrutas] > 0:
+      myFormatFloat(abs(weeksGruposDifference[gruposSorted[0]])),
+      &"{gruposArticle[gruposSorted[1]]} {gruposSorted[1]}",
+      if weeksGruposDifference[gruposSorted[1]] > 0:
         "subieron"
       else: "bajaron",
-      myFormatFloat(abs(weeksGruposDifference[gFrutas])),
-      if weeksGruposDifference[gVerdHort] > 0:
+      myFormatFloat(abs(weeksGruposDifference[gruposSorted[1]])),
+      &"{gruposArticle[gruposSorted[2]]} {gruposSorted[2]}",
+      if weeksGruposDifference[gruposSorted[2]] > 0:
         "aumentaron"
       else: "disminuyeron",
-      myFormatFloat(abs(weeksGruposDifference[gVerdHort])),
-      if weeksGruposDifference[gOtros] > 0:
+      myFormatFloat(abs(weeksGruposDifference[gruposSorted[2]])),
+      &"{gruposArticle[gruposSorted[3]]} {gruposSorted[3]}",
+      if weeksGruposDifference[gruposSorted[3]] > 0:
         "subió"
       else: "bajó",
-      myFormatFloat(abs(weeksGruposDifference[gOtros])),
+      myFormatFloat(abs(weeksGruposDifference[gruposSorted[3]])),
     ], cdouble paragraphFont.size, paragraphFont.name)
     r.appendLineBreak()
 
@@ -255,7 +268,7 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
     for fuente in fuentes:
       ciudadesMercados[fuente.ciudad].add fuente.mercado
 
-    print ciudadesMercados
+    extraInfo pretty ciudadesMercados
 
     proc ciudadSentence(ciudad: string, index: int): string =
       assert ciudad in ciudadesMercados and ciudad in ciudadesArticles, &"{ciudad=}"
@@ -296,7 +309,7 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
         case index
         of 0:
           "Entre los mercados mayoristas que registraron $# en su oferta de alimentos se $#" % [
-            if secondWeekIncreased: "altas"
+            if secondWeekIncreased: "alzas"
             else: "bajas", 
             case fuentes.len
             of 0, 1: "encuentra"
@@ -313,12 +326,11 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
         of 6:
           "Respecto a"
         of 7:
-          "Finalmente"
+          "Finalmente, en"
         else:
           "En"
 
       result.add " "
-
 
       block:
         var ciudad2 = ciudad # ciudad without parenthesis
@@ -424,9 +436,9 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
             else:
               "menos",
             if weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo] > 0:
-              "al mayor ingreso"
+              "al crecimiento en la entrada"
             else:
-              "a la caída",
+              "al decrecimiento en la entrada",
         ]
       of 4:
         result.add ", los inventarios de alimentos $# $# por $# que presentaron $# del $# ante los $# volúmenes de ..., especialmente." % [
@@ -447,7 +459,7 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
               "menores",
         ]
       of 5:
-        result.add " $# el acopio en $# por $# que reportaron un $# del $# por el $# ingreso de alimentos como ..." % [
+        result.add " $# el acopio en $# por $# que reportaron un $# del $# por los $# ingreso de inventarios de alimentos como ..." % [
             if weeksCiudadesDifference[ciudad] > 0:
               "incrementó"
             else:
@@ -460,15 +472,15 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
               "decrecimiento",
             myFormatFloat(abs(weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo])),
             if weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo] > 0:
-              "mayor"
+              "mayores"
             else:
-              "menor",
+              "menores",
         ]
       of 6:
         result.add (", el aprovisionamiento de alimentos $# $# por $# que registraron una variación " & 
           "$# del $#, como consecuencia de la $# entrada de ..., entre otros.") % [
             if weeksCiudadesDifference[ciudad] > 0:
-              "se elevó"
+              "creció"
             else:
               "descendió",
             myFormatFloat(abs(weeksCiudadesDifference[ciudad])),
@@ -479,9 +491,9 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
               "negativa",
             myFormatFloat(abs(weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo])),
             if weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo] > 0:
-              "amplia"
+              "mayor"
             else:
-              "poca",
+              "menor",
         ]
       of 7:
         result.add (", $# la oferta en $# por $# que registraron una $# " & 
@@ -492,10 +504,11 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
               "decreció",
             myFormatFloat(abs(weeksCiudadesDifference[ciudad])),
             gruposArticle[ciudadMostGrupo] & " " & $ciudadMostGrupo, 
-            if weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo] > 0:
-              "subida"
-            else:
-              "baja",
+            "variación",
+            #if weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo] > 0:
+            #  "subida"
+            #else:
+            #  "baja",
             myFormatFloat(abs(weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo])),
             if weeksCiudadesGruposDifference[ciudad][ciudadMostGrupo] > 0:
               "mayor"
@@ -523,7 +536,6 @@ proc generateDocumentImpl(dateFormat, inputPath: string) =
 
     var p = doc.appendParagraph()
     var options = @[1, 2, 3, 4, 5, 6]
-
 
     for i in countup(0, 6, 2):
       var r1, r2: int
@@ -652,3 +664,8 @@ proc generateDocument*(dateFormat, inputPath: string) {.thread.} =
     generateDocumentImpl(dateFormat, inputPath)
   except:
     indiChannel.send errorMsg getCurrentExceptionMsg()
+
+when isMainModule:
+  indiChannel.open()
+  generateDocumentImpl("dd/MM/yyyy", "../../InfoAbaste-2-26_03_2024.csv")
+  indiChannel.close()

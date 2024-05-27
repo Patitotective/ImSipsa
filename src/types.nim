@@ -347,7 +347,7 @@ type
     lastFile*: string
 
   IndiPrefs* {.defaults: {defExported}.} = object
-    lastDateFormat* = "dd/MM/yy"
+    lastDateFormat* = "dd/MM/yyyy"
     lastFile*: string
 
   Prefs* {.defaults: {defExported}.} = object

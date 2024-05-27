@@ -1,4 +1,4 @@
-import std/[times, sets, strformat, tables, strutils, encodings, os, monotimes]
+import std/[times, sets, strformat, tables, strutils, encodings, os, monotimes, macros]
 import datamancer
 import arraymancer
 import pretty
@@ -42,8 +42,14 @@ proc finishDocMsg*(): Message =
 proc errorMsg*(msg: string): Message = 
   Message(kind: mkErroMsg, errorMsg: msg)
 
-proc pretty*(a: auto): string = 
-    prettyString(prettyWalk(a))
+macro pretty*(a: typed): string = 
+  a.expectKind(nnkSym)
+  let name = a.strVal
+
+  quote do:
+    let ctx = newPrettyContext()
+    ctx.add(`name`, `a`)
+    ctx.prettyString()
 
 template info*(a: typed): untyped = 
   indiChannel.send infoMsg a

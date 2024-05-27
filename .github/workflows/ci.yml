@@ -37,7 +37,7 @@ jobs:
           nimble install -d -y
           nimble buildr
       - name: Upload Artifacts
-        uses: actions/upload-artifact-as-is@v0
+        uses: kittaakos/upload-artifact-as-is@v0
         with:
           name: win-amd64
           path: ./*.exe

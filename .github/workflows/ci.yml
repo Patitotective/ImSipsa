@@ -1,7 +1,8 @@
 name: CI
 on:
-  push:
-    tags: '**'
+  release: 
+    types: [published]
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -13,13 +14,9 @@ jobs:
         run: |
           nimble install -d -y
           nimble buildr
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload release binaries
+        uses: alexellis/upload-assets@0.2.2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         with:
-          make_latest: true
-          files: ./*.exe
-      - name: Upload Artifacts
-        uses: kittaakos/upload-artifact-as-is@v0
-        with:
-          path: ./*.exe
+          asset_paths: '["*.exe"]'

@@ -36,6 +36,11 @@ jobs:
         run: |
           nimble install -d -y
           nimble buildr
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: ./*.exe
       - name: Upload Artifacts
         uses: kittaakos/upload-artifact-as-is@v0
         with:

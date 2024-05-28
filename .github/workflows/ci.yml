@@ -39,6 +39,4 @@ jobs:
       - name: Upload Artifacts
         uses: kittaakos/upload-artifact-as-is@v0
         with:
-          name: win-amd64
           path: ./*.exe
-          if-no-files-found: error

@@ -1,9 +1,7 @@
 name: CI
 on:
   push:
-  pull_request:
-    branches: [ main, devel ]
-
+    tags: '**'
 jobs:
   windows:
     runs-on: windows-latest
@@ -19,6 +17,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
+          make_latest: true
           files: ./*.exe
       - name: Upload Artifacts
         uses: kittaakos/upload-artifact-as-is@v0

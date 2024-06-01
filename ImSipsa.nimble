@@ -35,7 +35,7 @@ let flags = getEnv("FLAGS")
 let args = &"--app:gui --out:{outPath} --cpu:{arch} {flags}"
 
 task buildr, "Build the application for release":
-  exec &"nimble c -d:release {args} main.nim"
+  exec &"nimble -y c -d:release {args} main.nim"
 
 const desktopTemplate = """
 [Desktop Entry]

@@ -38,7 +38,7 @@ proc validateExcel*(path, foodsCol, observCol: string,
 
   let foodsColLetter = p.headerToLetter(foodsCol)
 
-  var rowNum = 0
+  var rowNum = 1
 
   while p.readRow():
     let foodVal = p.rowEntry(foodsCol).uniform
@@ -49,13 +49,7 @@ proc validateExcel*(path, foodsCol, observCol: string,
         if foodVal == food.uniform:
           for observ in observervations:
             if observ.uniform in observVal:
-              # var foodFont = row.styleFont(foodsCol)
-              # foodFont.color = $colRed
-
-              #row.style(foodsCol, fill = fillStyle(pattern = patternFillStyle(patternType = ptSolid, fgColor = $colRed)))
-              #row.copyStyle(foodsCol, &"{observCol}{row.rowNum}")
-
-              aliChannel.send Msg(kind: mkData, pos: &"{foodsColLetter}{rowNum}", food: foodVal, observ: observ)
+              aliChannel.send Msg(kind: mkData, pos: &"{foodsColLetter}{rowNum + 1}", food: foodVal, observ: observ)
               break f
   
     inc rowNum

@@ -345,6 +345,7 @@ type
     lastFoodCol* = "Ali"
     lastObservCol* = "Observaciones"
     lastFile*: string
+    lastErrors*: seq[tuple[pos, food, observ: string]]
 
   IndiPrefs* {.defaults: {defExported}.} = object
     lastDateFormat* = "dd/MM/yyyy"

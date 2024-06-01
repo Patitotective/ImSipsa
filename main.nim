@@ -19,7 +19,7 @@ proc getConfigDir(app: App): string =
 proc drawAboutModal(app: App) =
   igSetNextWindowPos(igGetMainViewport().getCenter(), Always, igVec2(0.5f, 0.5f))
   let unusedOpen = true # Passing this parameter creates a close button
-  if igBeginPopupModal(cstring "About " & app.config.name & "###about", unusedOpen.unsafeAddr, flags = makeFlags(ImGuiWindowFlags.NoResize)):
+  if igBeginPopupModal(cstring "Acerca de " & app.config.name & "###about", unusedOpen.unsafeAddr, flags = makeFlags(ImGuiWindowFlags.NoResize)):
     # Display icon image
     var texture: GLuint
     var image = app.res(app.config.iconPath).readImageFromMemory()
@@ -43,7 +43,7 @@ proc drawAboutModal(app: App) =
 
     # To make it not clickable
     igPushItemFlag(ImGuiItemFlags.Disabled, true)
-    igSelectable("Credits", true, makeFlags(ImGuiSelectableFlags.DontClosePopups))
+    igSelectable("Creditos", true, makeFlags(ImGuiSelectableFlags.DontClosePopups))
     igPopItemFlag()
 
     if igBeginChild("##credits", igVec2(0, 75)):
@@ -59,6 +59,17 @@ proc drawAboutModal(app: App) =
 
     igText(cstring app.config.version)
 
+    if app.prefs.path.len > 0:
+      igSameLine()
+
+      igSetCursorPosX(igGetCurrentWindow().size.x - igCalcFrameSize("Open prefs file").x - igGetStyle().windowPadding.x)
+
+      if igButton("Open prefs file"):
+        openURL(app.prefs.path)
+
+      if igIsItemHovered():
+        igSetTooltip(cstring app.prefs.path & " " & FA_FileTextO)
+
     igEndPopup()
 
 proc drawEditObservsModal(app: var App) = 
@@ -69,7 +80,7 @@ proc drawEditObservsModal(app: var App) =
   let unusedOpen = true # Passing this parameter creates a close button
 
   if igBeginPopupModal("Editar Observaciones###editObservs", unusedOpen.unsafeAddr):
-    if igBeginListBox("##observs", size = igVec2(igGetContentRegionAvail().x, 0)):
+    if igBeginListBox("##observs"):#, size = igVec2(igGetContentRegionAvail().x, 0)):
       for e, observ in app.prefs[alitab].forbidden[app.alitab.currentFood].deepCopy:
         if igSelectable(cstring &"{observ}##{e}"):
           app.alitab.currentObserv = e
@@ -114,7 +125,7 @@ proc drawForbiddenModal(app: var App) =
           igOpenPopup("###editFood")
 
         if igBeginPopupContextItem():
-          if igMenuItem(cstring &"Borrar {FA_TrashO}"):
+          if igMenuItem(cstring &"Borrar {FA_TrashO}##{e}"):
             app.prefs[alitab].forbidden.del(key)
 
           igEndPopup()
@@ -152,10 +163,10 @@ proc drawMainMenuBar(app: var App) =
   if igBeginMainMenuBar():
     if igBeginMenu("Archivo"):
       # igMenuItem("Settings " & FA_Cog, "Ctrl+P", openPrefs.addr)
-      if igMenuItem("Volver al inicio", enabled = app.currentTab == 0 and app.alitab.processState == psFinished):
-        app.alitab.errors.setLen(0)
-        app.alitab.processError.setLen(0)
-        app.alitab.processState = psUnstarted
+      #if igMenuItem("Volver al inicio", enabled = app.currentTab == 0 and app.alitab.processState == psFinished):
+      #  app.alitab.errors.setLen(0)
+      #  app.alitab.processError.setLen(0)
+      #  app.alitab.processState = psUnstarted
 
       if igMenuItem("Cerrar " & FA_Times, "Ctrl+Q"):
         app.win.setWindowShouldClose(true)
@@ -222,6 +233,20 @@ proc drawAlimentosTab(app: var App) =
     if app.alitab.file.val.len == 0 or app.alitab.foodColBuf.cleanString.len == 0 or app.alitab.observColBuf.cleanString.len == 0:
       igPopDisabled()
 
+    igSameLine()
+
+    let previousResultsDisabled = app.prefs[alitab].lastErrors.len == 0
+
+    if previousResultsDisabled:
+      igPushDisabled()
+
+    if igButton("Ver anteriores resultados##previousResults"):
+      app.alitab.processState = psFinished
+      app.alitab.errors = app.prefs[alitab].lastErrors
+
+    if previousResultsDisabled:
+      igPopDisabled()
+
   else:
     if (let (ok, msg) = aliChannel.tryRecv; ok):
       case msg.kind
@@ -234,9 +259,16 @@ proc drawAlimentosTab(app: var App) =
       of mkFinished:
         app.alitab.processState = psFinished
         spawn notifyPopup("ImSipsa", &"El archivo ha sido procesado", IconType.Info)
+        app.prefs[alitab].lastErrors = app.alitab.errors
+        app.prefs.save()
 
     if app.alitab.processState == psFinished:
       igText("Completado")
+
+      if igButton("Volver##goback"):
+        app.alitab.errors.setLen(0)
+        app.alitab.processError.setLen(0)
+        app.alitab.processState = psUnstarted
 
     if app.alitab.processError.len > 0:
       igPushTextWrapPos(igGetWindowWidth())
@@ -244,6 +276,9 @@ proc drawAlimentosTab(app: var App) =
       igPopTextWrapPos()
 
     if igBeginListBox("##listbox", igGetContentRegionAvail()):
+      if app.alitab.processState != psFinished:
+        igSpinner("##spinner", 30, 10, igGetColorU32(ButtonHovered))
+
       for e, error in app.alitab.errors:
         igSelectable(cstring &"{error.pos}: Alimento {error.food} contiene {error.observ}##{e}")
         if igBeginPopupContextItem():
@@ -252,8 +287,6 @@ proc drawAlimentosTab(app: var App) =
 
           igEndPopup()
 
-      if app.alitab.processState != psFinished:
-        igSpinner("##spinner", 30, 10, igGetColorU32(ButtonHovered))
       igEndListBox()
 
 proc drawIndicadorTab(app: var App) = 

@@ -1,9 +1,9 @@
 # Package
 
-author           = "Patitotective"
-description      = "A new awesome Dear ImGui application"
-license          = "MIT"
-backend          = "cpp"
+author = "Patitotective"
+description = "A new awesome Dear ImGui application"
+license = "MIT"
+backend = "cpp"
 
 # Dependencies
 
@@ -17,15 +17,15 @@ requires "tinydialogs >= 1.0.0"
 requires "constructor >= 1.2.0"
 requires "excelin >= 0.5.4"
 requires "datamancer >= 0.4.2"
+requires "pretty >= 0.2.0"
 requires "https://github.com/Patitotective/minidocx-nim/ >= 0.1.0"
-requires "https://github.com/Patitotective/pretty/ >= 0.2.0"
 
 import std/[strformat, options]
 import src/configtype
 
 const config = Config()
 
-version          = config.version
+version = config.version
 namedBin["main"] = config.name
 
 let arch = getEnv("ARCH", "amd64")
@@ -37,7 +37,8 @@ let args = &"--app:gui --out:{outPath} --cpu:{arch} {flags}"
 task buildr, "Build the application for release":
   exec &"nimble -y c -d:release {args} main.nim"
 
-const desktopTemplate = """
+const desktopTemplate =
+  """
 [Desktop Entry]
 Name=$name
 Exec=AppRun
@@ -55,19 +56,25 @@ task buildapp, "Build the AppImage":
   let appimagePath = &"{config.name}-{version}-{arch}.AppImage"
 
   # Compile applicaiton executable
-  if not dirExists("AppDir"): mkDir("AppDir")
+  if not dirExists("AppDir"):
+    mkDir("AppDir")
   exec &"nimble c -d:release -d:appimage {args} --out:AppDir/AppRun main.nim"
 
   # Make desktop file
   writeFile(
     &"AppDir/{config.name}.desktop",
     desktopTemplate % [
-      "name", config.name,
-      "categories", config.categories.join(";"),
-      "version", config.version,
-      "comment", config.comment,
-      "arch", arch
-    ]
+      "name",
+      config.name,
+      "categories",
+      config.categories.join(";"),
+      "version",
+      config.version,
+      "comment",
+      config.comment,
+      "arch",
+      arch,
+    ],
   )
   # Copy icons
   cpFile(config.iconPath, "AppDir/.DirIcon")

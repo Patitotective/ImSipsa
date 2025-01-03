@@ -8,12 +8,17 @@ type
     gVerdHort = "verduras y hortalizas"
     gTubRaiPla = "tubérculos, raíces y plátanos"
     gFrutas = "frutas"
-    gOtros = "otros grupos" # granos y cereales; lácteos y huevos; pescados; procesados; carnes
+    gOtros = "otros grupos"
+      # granos y cereales; lácteos y huevos; pescados; procesados; carnes
 
   Fuente* = tuple[ciudad, mercado: string]
 
   MessageKind* = enum
-    mkInfo, mkFinishData, mkFinishDoc, mkExtraInfo, mkErroMsg
+    mkInfo
+    mkFinishData
+    mkFinishDoc
+    mkExtraInfo
+    mkErroMsg
 
   Message* = object
     case kind*: MessageKind
@@ -23,54 +28,48 @@ type
       extraInfo*: string
     of mkErroMsg:
       errorMsg*: string
-    else: discard
+    else:
+      discard
 
 var indiChannel*: Channel[Message]
 
-proc infoMsg*(s: string): Message = 
+proc infoMsg*(s: string): Message =
   Message(kind: mkInfo, info: s)
 
-proc extraInfoMsg*(s: string): Message = 
+proc extraInfoMsg*(s: string): Message =
   Message(kind: mkExtraInfo, extraInfo: s)
 
-proc finishDataMsg*(): Message = 
+proc finishDataMsg*(): Message =
   Message(kind: mkFinishData)
 
-proc finishDocMsg*(): Message = 
+proc finishDocMsg*(): Message =
   Message(kind: mkFinishDoc)
 
-proc errorMsg*(msg: string): Message = 
+proc errorMsg*(msg: string): Message =
   Message(kind: mkErroMsg, errorMsg: msg)
 
-macro pretty*(a: typed): string = 
+macro pretty*(a: typed): string =
   a.expectKind(nnkSym)
   let name = a.strVal
 
-  quote do:
+  quote:
     let ctx = newPrettyContext()
     ctx.add(`name`, `a`)
     ctx.prettyString()
 
-template info*(a: typed): untyped = 
+template info*(a: typed): untyped =
   indiChannel.send infoMsg a
 
-template extraInfo*(a: typed): untyped = 
+template extraInfo*(a: typed): untyped =
   indiChannel.send extraInfoMsg a
 
 const
   #dateFormat = "dd/MM/yyyy"
   ciudades* = [
-    "Armenia", "Barranquilla",
-    "Bogotá, D.C.", "Bucaramanga",
-    "Cali", "Cartagena",
-    "Cúcuta","Florencia (Caquetá)",
-    "Ibagué", "Ipiales (Nariño)",
-    "Manizales", "Medellín",
-    "Montería", "Neiva",
-    "Pereira", "Pasto",
-    "Popayán", "Santa Marta (Magdalena)",
-    "Sincelejo", "Tibasosa (Boyacá)",
-    "Tunja", "Valledupar",
+    "Armenia", "Barranquilla", "Bogotá, D.C.", "Bucaramanga", "Cali", "Cartagena",
+    "Cúcuta", "Florencia (Caquetá)", "Ibagué", "Ipiales (Nariño)", "Manizales",
+    "Medellín", "Montería", "Neiva", "Pereira", "Pasto", "Popayán",
+    "Santa Marta (Magdalena)", "Sincelejo", "Tibasosa (Boyacá)", "Tunja", "Valledupar",
     "Villavicencio",
   ]
   fuentes* = [
@@ -105,28 +104,52 @@ const
     ("Tunja", "Complejo de Servicios del Sur"),
     ("Valledupar", "Mercabastos"),
     ("Valledupar", "Mercado Nuevo"),
-    ("Villavicencio", "CAV")
+    ("Villavicencio", "CAV"),
   ]
   grupos* = [ # Not uniformed (with accents)
-    "verduras y hortalizas", "tubérculos, raíces y plátanos", "frutas",
-    "granos y cereales", "lácteos y huevos", "pescados", "procesados", "carnes" # Otros
+    "verduras y hortalizas",
+    "tubérculos, raíces y plátanos",
+    "frutas",
+    "granos y cereales",
+    "lácteos y huevos",
+    "pescados",
+    "procesados",
+    "carnes", # Otros
   ]
   gruposToEnum* = { # Uniformed (without accents)
-    "verduras y hortalizas": gVerdHort, "tuberculos, raices y platanos": gTubRaiPla, "frutas": gFrutas,
-    "granos y cereales": gOtros, "lacteos y huevos": gOtros, "pescados": gOtros, "procesados": gOtros, "carnes": gOtros
+    "verduras y hortalizas": gVerdHort,
+    "tuberculos, raices y platanos": gTubRaiPla,
+    "frutas": gFrutas,
+    "granos y cereales": gOtros,
+    "lacteos y huevos": gOtros,
+    "pescados": gOtros,
+    "procesados": gOtros,
+    "carnes": gOtros,
   }.toTable
 
 proc uniform*(str: string): string =
-  str.strip().toLowerAscii().multiReplace(("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n"))
+  str.strip().toLowerAscii().multiReplace(
+    ("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")
+  )
 
 proc processData*(dateFormat, inputPath: string): auto =
   let startTime = getMonoTime()
 
   #const path = currentSourcePath.parentDir() / "../InfoAbaste-2-26_03_2024.csv"
 
-  let df = parseCsvString(readFile(inputPath).convert(destEncoding = "UTF-8", srcEncoding = "CP1252"), sep = ';', quote = '\0')
+  let df = parseCsvString(
+    readFile(inputPath).convert(destEncoding = "UTF-8", srcEncoding = "CP1252"),
+    sep = ';',
+    quote = '\0',
+  )
 
-  for column in ["Fuente", "FechaEncuesta", "HoraEncuesta", "TipoVehiculo", "PlacaVehiculo", "Cod. Depto Proc.", "Departamento Proc.", "Cod. Municipio Proc.", "Municipio Proc.", "Observaciones", "Grupo", "Codigo CPC", "Ali", "Cant Pres", "Pres", "Peso Pres", "Cant Kg"]:
+  for column in [
+    "Fuente", "FechaEncuesta", "HoraEncuesta", "TipoVehiculo", "PlacaVehiculo",
+    "Divipola Depto Proc.", "Departamento",
+    "Divipola Municipio / ISO 3166-1 País Proc.",
+    "Municipio de Colombia / País Proc.", "Observaciones", "Grupo", "Codigo CPC",
+    "Ali", "Cant Pres", "Pres", "Peso Pres", "Cant Kg",
+  ]:
     assert column in df, &"La columna \"{column}\" no existe"
   {.cast(gcsafe).}:
     let dateCol = df["FechaEncuesta"]
@@ -135,13 +158,26 @@ proc processData*(dateFormat, inputPath: string): auto =
   let firstWeekEnd = firstWeekStart + 6.days
   let secondWeekStart = secondWeekEnd - 6.days
 
-  assert inDays(secondWeekEnd - firstWeekStart) == 13, &"Entre el primer y último registro no hay dos semanas, hay {{inDays(secondWeekEnd - firstWeekStart)}} días" # Two weeks, not 14 since subtracting doesn't include secondWeekEnd
+  assert inDays(secondWeekEnd - firstWeekStart) == 13,
+    &"Entre el primer y último registro no hay dos semanas, hay {{inDays(secondWeekEnd - firstWeekStart)}} días"
+    # Two weeks, not 14 since subtracting doesn't include secondWeekEnd
   {.cast(gcsafe).}:
-    let firstWeekDf = df.filter(f{string -> bool: inDays(idx(`FechaEncuesta`).parse(dateFormat) - firstWeekStart) < 7})
-    let secondWeekDf = df.filter(f{string -> bool: inDays(secondWeekEnd - idx(`FechaEncuesta`).parse(dateFormat)) < 7})
+    let firstWeekDf = df.filter(
+      f{
+        string -> bool:
+          inDays(idx(`FechaEncuesta`).parse(dateFormat) - firstWeekStart) < 7
+      }
+    )
+    let secondWeekDf = df.filter(
+      f{
+        string -> bool:
+          inDays(secondWeekEnd - idx(`FechaEncuesta`).parse(dateFormat)) < 7
+      }
+    )
     let firstWeekTotalKg = firstWeekDf["Cant Kg", float].sum
     let secondWeekTotalKg = secondWeekDf["Cant Kg", float].sum
-  let weeksKgDifference = ((secondWeekTotalKg - firstWeekTotalKg) / firstWeekTotalKg) * 100 # Percentage
+  let weeksKgDifference =
+    ((secondWeekTotalKg - firstWeekTotalKg) / firstWeekTotalKg) * 100 # Percentage
 
   extraInfo pretty weeksKgDifference
 
@@ -167,13 +203,14 @@ proc processData*(dateFormat, inputPath: string): auto =
   var weeksGruposDifference = initTable[Grupo, float]() # Percentage per grupo
   for grupo, total in firstWeekGruposTotalKg:
     assert grupo in secondWeekGruposTotalKg, &"{grupo=}"
-    weeksGruposDifference[grupo] = ((secondWeekGruposTotalKg[grupo] - total) / total) * 100
+    weeksGruposDifference[grupo] =
+      ((secondWeekGruposTotalKg[grupo] - total) / total) * 100
 
   extraInfo pretty weeksGruposDifference
 
   proc parseFuente(input: string): Fuente =
     let fuenteSplit = input.rsplit(", ", maxsplit = 1)
-    assert fuenteSplit.len in 1..2, &"{fuenteSplit=}"
+    assert fuenteSplit.len in 1 .. 2, &"{fuenteSplit=}"
 
     result =
       if fuenteSplit.len == 2:
@@ -184,7 +221,9 @@ proc processData*(dateFormat, inputPath: string): auto =
     if result.ciudad == "Cali" and result.mercado == "Santa Helena":
       result.mercado = "Santa Elena"
 
-  proc sumFuentesAndCiudades(df: DataFrame): tuple[fuentes: Table[Fuente, float], ciudades: Table[string, float]] =
+  proc sumFuentesAndCiudades(
+      df: DataFrame
+  ): tuple[fuentes: Table[Fuente, float], ciudades: Table[string, float]] =
     for f in fuentes:
       result.fuentes[f] = 0
 
@@ -199,24 +238,33 @@ proc processData*(dateFormat, inputPath: string): auto =
         result.fuentes[fuente] += subDf["Cant Kg", float].sum
         result.ciudades[fuente.ciudad] += subDf["Cant Kg", float].sum
 
-  let (firstWeekFuentesTotalKg, firstWeekCiudadesTotalKg) = firstWeekDf.sumFuentesAndCiudades()
-  let (secondWeekFuentesTotalKg, secondWeekCiudadesTotalKg) = secondWeekDf.sumFuentesAndCiudades()
+  let (firstWeekFuentesTotalKg, firstWeekCiudadesTotalKg) =
+    firstWeekDf.sumFuentesAndCiudades()
+  let (secondWeekFuentesTotalKg, secondWeekCiudadesTotalKg) =
+    secondWeekDf.sumFuentesAndCiudades()
 
   var weeksFuentesDifference = initTable[Fuente, float]() # Percentage per fuente
   for fuente, total in firstWeekFuentesTotalKg:
     assert fuente in secondWeekFuentesTotalKg, &"{fuente=}"
-    weeksFuentesDifference[fuente] = ((secondWeekFuentesTotalKg[fuente] - total) / total) * 100
+    weeksFuentesDifference[fuente] =
+      ((secondWeekFuentesTotalKg[fuente] - total) / total) * 100
 
   extraInfo pretty weeksFuentesDifference
 
   var weeksCiudadesDifference = initTable[string, float]() # Percentage per fuente
   for ciudad, total in firstWeekCiudadesTotalKg:
     assert ciudad in secondWeekCiudadesTotalKg, &"{ciudad=}"
-    weeksCiudadesDifference[ciudad] = ((secondWeekCiudadesTotalKg[ciudad] - total) / total) * 100
+    weeksCiudadesDifference[ciudad] =
+      ((secondWeekCiudadesTotalKg[ciudad] - total) / total) * 100
 
   extraInfo pretty weeksCiudadesDifference
 
-  proc sumFuentesAndCiudadesGrupos(df: DataFrame): tuple[fuentes: Table[Fuente, Table[Grupo, float]], ciudades: Table[string, Table[Grupo, float]]] =
+  proc sumFuentesAndCiudadesGrupos(
+      df: DataFrame
+  ): tuple[
+    fuentes: Table[Fuente, Table[Grupo, float]],
+    ciudades: Table[string, Table[Grupo, float]],
+  ] =
     for f in fuentes:
       result.fuentes[f] = initTable[Grupo, float]()
       for g in Grupo:
@@ -238,20 +286,25 @@ proc processData*(dateFormat, inputPath: string): auto =
         result.fuentes[fuente][grupo] += subDf["Cant Kg", float].sum
         result.ciudades[fuente.ciudad][grupo] += subDf["Cant Kg", float].sum
 
-  let (firstWeekFuentesGruposTotalKg, firstWeekCiudadesGruposTotalKg) = firstWeekDf.sumFuentesAndCiudadesGrupos()
-  let (secondWeekFuentesGruposTotalKg, secondWeeksCiudadesGruposTotalKg) = secondWeekDf.sumFuentesAndCiudadesGrupos()
+  let (firstWeekFuentesGruposTotalKg, firstWeekCiudadesGruposTotalKg) =
+    firstWeekDf.sumFuentesAndCiudadesGrupos()
+  let (secondWeekFuentesGruposTotalKg, secondWeeksCiudadesGruposTotalKg) =
+    secondWeekDf.sumFuentesAndCiudadesGrupos()
 
-  var weeksFuentesGruposDifference = initTable[Fuente, Table[Grupo, float]]() # Percentage per fuente and grupo
+  var weeksFuentesGruposDifference = initTable[Fuente, Table[Grupo, float]]()
+    # Percentage per fuente and grupo
   for fuente, grupos in firstWeekFuentesGruposTotalKg:
     assert fuente in secondWeekFuentesGruposTotalKg, &"{fuente=}"
     weeksFuentesGruposDifference[fuente] = initTable[Grupo, float]()
     for grupo, total in grupos:
       assert grupo in secondWeekFuentesGruposTotalKg[fuente], &"{fuente=} {grupo=}"
-      weeksFuentesGruposDifference[fuente][grupo] = ((secondWeekFuentesGruposTotalKg[fuente][grupo] - total) / total) * 100
+      weeksFuentesGruposDifference[fuente][grupo] =
+        ((secondWeekFuentesGruposTotalKg[fuente][grupo] - total) / total) * 100
 
   extraInfo pretty weeksFuentesGruposDifference
 
-  var weeksCiudadesGruposDifference = initTable[string, Table[Grupo, float]]() # Percentage per ciudad and grupo
+  var weeksCiudadesGruposDifference = initTable[string, Table[Grupo, float]]()
+    # Percentage per ciudad and grupo
   for ciudad, grupos in firstWeekCiudadesGruposTotalKg:
     assert ciudad in secondWeeksCiudadesGruposTotalKg, &"{ciudad=}"
     weeksCiudadesGruposDifference[ciudad] = initTable[Grupo, float]()
@@ -259,7 +312,8 @@ proc processData*(dateFormat, inputPath: string): auto =
       assert grupo in secondWeeksCiudadesGruposTotalKg[ciudad], &"{ciudad=} {grupo=}"
       #if total == 0 and secondWeeksCiudadesGruposTotalKg[ciudad][grupo] == 0:
       #  continue
-      weeksCiudadesGruposDifference[ciudad][grupo] = ((secondWeeksCiudadesGruposTotalKg[ciudad][grupo] - total) / total) * 100
+      weeksCiudadesGruposDifference[ciudad][grupo] =
+        ((secondWeeksCiudadesGruposTotalKg[ciudad][grupo] - total) / total) * 100
 
   extraInfo pretty firstWeekCiudadesGruposTotalKg
   extraInfo pretty secondWeeksCiudadesGruposTotalKg
@@ -284,7 +338,8 @@ proc processData*(dateFormat, inputPath: string): auto =
   var weeksWeekdaysDifference = initTable[WeekDay, float]() # Percentage per weekday
   for weekday, total in firstWeekWeekdaysTotalKg:
     assert weekday in secondWeekWeekdaysTotalKg, &"{weekday=}"
-    weeksWeekdaysDifference[weekday] = ((secondWeekWeekdaysTotalKg[weekday] - total) / total) * 100
+    weeksWeekdaysDifference[weekday] =
+      ((secondWeekWeekdaysTotalKg[weekday] - total) / total) * 100
 
   extraInfo pretty weeksWeekdaysDifference
   info &"Procesando los datos se demoró {getMonoTime() - startTime}"
@@ -292,11 +347,19 @@ proc processData*(dateFormat, inputPath: string): auto =
   indiChannel.send finishDataMsg()
 
   (
-    firstWeekStart: firstWeekStart, secondWeekEnd: secondWeekEnd, firstWeekEnd: firstWeekEnd, secondWeekStart: secondWeekStart, 
-    firstWeekTotalKg: firstWeekTotalKg, secondWeekTotalKg: secondWeekTotalKg, weeksKgDifference: weeksKgDifference, 
-    firstWeekGruposTotalKg: firstWeekGruposTotalKg, secondWeekGruposTotalKg: secondWeekGruposTotalKg, weeksGruposDifference: weeksGruposDifference, 
-    weeksFuentesDifference: weeksFuentesDifference, weeksCiudadesDifference: weeksCiudadesDifference, 
-    weeksFuentesGruposDifference: weeksFuentesGruposDifference, weeksCiudadesGruposDifference: weeksCiudadesGruposDifference, 
-    weeksWeekdaysDifference: weeksWeekdaysDifference, 
+    firstWeekStart: firstWeekStart,
+    secondWeekEnd: secondWeekEnd,
+    firstWeekEnd: firstWeekEnd,
+    secondWeekStart: secondWeekStart,
+    firstWeekTotalKg: firstWeekTotalKg,
+    secondWeekTotalKg: secondWeekTotalKg,
+    weeksKgDifference: weeksKgDifference,
+    firstWeekGruposTotalKg: firstWeekGruposTotalKg,
+    secondWeekGruposTotalKg: secondWeekGruposTotalKg,
+    weeksGruposDifference: weeksGruposDifference,
+    weeksFuentesDifference: weeksFuentesDifference,
+    weeksCiudadesDifference: weeksCiudadesDifference,
+    weeksFuentesGruposDifference: weeksFuentesGruposDifference,
+    weeksCiudadesGruposDifference: weeksCiudadesGruposDifference,
+    weeksWeekdaysDifference: weeksWeekdaysDifference,
   )
-

@@ -667,5 +667,5 @@ proc generateDocument*(dateFormat, inputPath: string) {.thread.} =
 
 when isMainModule:
   indiChannel.open()
-  generateDocumentImpl("dd/MM/yyyy", "../../InfoAbaste-2-26_03_2024.csv")
+  generateDocumentImpl("d/MM/yyyy", "/home/cristobal/dev/ImSipsa/InfoAbaste-2-03_01_2025(1).csv")
   indiChannel.close()

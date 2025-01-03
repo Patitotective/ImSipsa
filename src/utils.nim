@@ -41,7 +41,7 @@ proc cleanString*(str: string): string =
 proc updatePrefs*(app: var App) =
   # Update values depending on the preferences here
   # This procedure is also called at the start of the app
-  echo "Updating preferences..."
+  discard
 
 proc res*(app: App, path: string): string =
   when defined(release):

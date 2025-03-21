@@ -209,14 +209,6 @@ proc processData*(dateFormat, inputPath: string): auto =
   extraInfo pretty weeksGruposDifference
 
   proc parseFuente(input: string): Fuente =
-    var input = input
-    if input.startsWith("\""):
-      input = input[1..^1]
-    if input.endsWith("\""):
-      input = input[0..^2]
-
-    input = input.replace("\"\"", "\"")
-
     let fuenteSplit = input.rsplit(", ", maxsplit = 1)
     assert fuenteSplit.len in 1 .. 2, &"{fuenteSplit=}"
 

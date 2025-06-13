@@ -1,7 +1,8 @@
-import std/[times, sets, strformat, tables, strutils, encodings, os, monotimes, macros]
+import std/[times, sets, strformat, tables, strutils, encodings, monotimes, logging]
 import datamancer
 import arraymancer
 import pretty
+import ./utils
 
 type
   Grupo* = enum
@@ -12,56 +13,6 @@ type
       # granos y cereales; lácteos y huevos; pescados; procesados; carnes
 
   Fuente* = tuple[ciudad, mercado: string]
-
-  MessageKind* = enum
-    mkInfo
-    mkFinishData
-    mkFinishDoc
-    mkExtraInfo
-    mkErroMsg
-
-  Message* = object
-    case kind*: MessageKind
-    of mkInfo:
-      info*: string
-    of mkExtraInfo:
-      extraInfo*: string
-    of mkErroMsg:
-      errorMsg*: string
-    else:
-      discard
-
-var indiChannel*: Channel[Message]
-
-proc infoMsg*(s: string): Message =
-  Message(kind: mkInfo, info: s)
-
-proc extraInfoMsg*(s: string): Message =
-  Message(kind: mkExtraInfo, extraInfo: s)
-
-proc finishDataMsg*(): Message =
-  Message(kind: mkFinishData)
-
-proc finishDocMsg*(): Message =
-  Message(kind: mkFinishDoc)
-
-proc errorMsg*(msg: string): Message =
-  Message(kind: mkErroMsg, errorMsg: msg)
-
-macro pretty*(a: typed): string =
-  a.expectKind(nnkSym)
-  let name = a.strVal
-
-  quote:
-    let ctx = newPrettyContext()
-    ctx.add(`name`, `a`)
-    ctx.prettyString()
-
-template info*(a: typed): untyped =
-  indiChannel.send infoMsg a
-
-template extraInfo*(a: typed): untyped =
-  indiChannel.send extraInfoMsg a
 
 const
   #dateFormat = "dd/MM/yyyy"
@@ -127,15 +78,13 @@ const
     "carnes": gOtros,
   }.toTable
 
-proc uniform*(str: string): string =
+proc uniform(str: string): string =
   str.strip().toLowerAscii().multiReplace(
     ("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")
   )
 
-proc processData*(dateFormat, inputPath: string): auto =
+proc processDataIndicador*(dateFormat, inputPath: string): auto =
   let startTime = getMonoTime()
-
-  #const path = currentSourcePath.parentDir() / "../InfoAbaste-2-26_03_2024.csv"
 
   let df = parseCsvString(
     readFile(inputPath).convert(destEncoding = "UTF-8", srcEncoding = "CP1252"),
@@ -179,7 +128,7 @@ proc processData*(dateFormat, inputPath: string): auto =
   let weeksKgDifference =
     ((secondWeekTotalKg - firstWeekTotalKg) / firstWeekTotalKg) * 100 # Percentage
 
-  extraInfo pretty weeksKgDifference
+  info pretty weeksKgDifference
 
   proc parseGrupo(input: string): Grupo =
     let grupo = input.uniform
@@ -206,7 +155,7 @@ proc processData*(dateFormat, inputPath: string): auto =
     weeksGruposDifference[grupo] =
       ((secondWeekGruposTotalKg[grupo] - total) / total) * 100
 
-  extraInfo pretty weeksGruposDifference
+  info pretty weeksGruposDifference
 
   proc parseFuente(input: string): Fuente =
     let fuenteSplit = input.rsplit(", ", maxsplit = 1)
@@ -249,7 +198,7 @@ proc processData*(dateFormat, inputPath: string): auto =
     weeksFuentesDifference[fuente] =
       ((secondWeekFuentesTotalKg[fuente] - total) / total) * 100
 
-  extraInfo pretty weeksFuentesDifference
+  info pretty weeksFuentesDifference
 
   var weeksCiudadesDifference = initTable[string, float]() # Percentage per fuente
   for ciudad, total in firstWeekCiudadesTotalKg:
@@ -257,7 +206,7 @@ proc processData*(dateFormat, inputPath: string): auto =
     weeksCiudadesDifference[ciudad] =
       ((secondWeekCiudadesTotalKg[ciudad] - total) / total) * 100
 
-  extraInfo pretty weeksCiudadesDifference
+  info pretty weeksCiudadesDifference
 
   proc sumFuentesAndCiudadesGrupos(
       df: DataFrame
@@ -302,7 +251,7 @@ proc processData*(dateFormat, inputPath: string): auto =
       weeksFuentesGruposDifference[fuente][grupo] =
         ((secondWeekFuentesGruposTotalKg[fuente][grupo] - total) / total) * 100
 
-  extraInfo pretty weeksFuentesGruposDifference
+  info pretty weeksFuentesGruposDifference
 
   var weeksCiudadesGruposDifference = initTable[string, Table[Grupo, float]]()
     # Percentage per ciudad and grupo
@@ -316,9 +265,9 @@ proc processData*(dateFormat, inputPath: string): auto =
       weeksCiudadesGruposDifference[ciudad][grupo] =
         ((secondWeeksCiudadesGruposTotalKg[ciudad][grupo] - total) / total) * 100
 
-  extraInfo pretty firstWeekCiudadesGruposTotalKg
-  extraInfo pretty secondWeeksCiudadesGruposTotalKg
-  extraInfo pretty weeksCiudadesGruposDifference
+  info pretty firstWeekCiudadesGruposTotalKg
+  info pretty secondWeeksCiudadesGruposTotalKg
+  info pretty weeksCiudadesGruposDifference
 
   proc sumWeekdays(df: DataFrame): Table[WeekDay, float] =
     for i in WeekDay:
@@ -342,10 +291,8 @@ proc processData*(dateFormat, inputPath: string): auto =
     weeksWeekdaysDifference[weekday] =
       ((secondWeekWeekdaysTotalKg[weekday] - total) / total) * 100
 
-  extraInfo pretty weeksWeekdaysDifference
+  info pretty weeksWeekdaysDifference
   info &"Procesando los datos se demoró {getMonoTime() - startTime}"
-
-  indiChannel.send finishDataMsg()
 
   (
     firstWeekStart: firstWeekStart,

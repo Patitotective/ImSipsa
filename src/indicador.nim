@@ -710,7 +710,7 @@ when isMainModule:
   if inputPath.len > 0:
     try:
       generateDocument("dd/MM/yyyy", inputPath)
-    except:
+    except Except:
       fail "No se pudo generar el indicador"
   else:
     fatal "No se encontró ningún archivo CSV"

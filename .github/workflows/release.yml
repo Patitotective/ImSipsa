@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-win: 
-    name: Build and upload amd64 exe
+    name: Build and upload windows exe
     runs-on: windows-latest
 
     steps:
@@ -16,7 +16,7 @@ jobs:
       - name: Build exe
         run: |
           nimble install -d -y
-          nimble buildr
+          nimble build
       - name: Upload release binaries
         uses: alexellis/upload-assets@0.2.2
         env:

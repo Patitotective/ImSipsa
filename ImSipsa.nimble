@@ -5,9 +5,9 @@ description = "A new awesome Dear ImGui application"
 license = "MIT"
 backend = "cpp" # minidocx requires C++
 srcDir = "src"
-version = "1.0.2"
+version = "1.0.3"
 namedBin["indicador"] =
-  "generadorDelIndicador-" & version & (when defined(window): ".exe" else: "")
+  "generadorDelIndicador-" & version & (when defined(windows): ".exe" else: "")
 
 # Dependencies
 

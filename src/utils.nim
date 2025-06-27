@@ -28,7 +28,7 @@ proc setupLogging*(path: string) =
   const logFormat = "[$date $time] $levelname "
 
   var consoleLog = newConsoleLogger(fmtStr = logFormat)
-  var rollingLog = newFileLogger(path, fmtStr = logFormat)
+  var rollingLog = newFileLogger(path, fmtStr = logFormat, mode = fmWrite)
 
   addHandler(consoleLog)
   addHandler(rollingLog)

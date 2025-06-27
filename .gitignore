@@ -8,6 +8,8 @@ nimblecache/
 htmldocs/
 
 *.exe
-# Ignore files like ImSipsa-0.3.1-amd64
-*-*.*.*-*
+# Ignore files like generadorDelIndicador-1.0.1
+*-*.*.*
 *.docx
+*.csv
+*.log

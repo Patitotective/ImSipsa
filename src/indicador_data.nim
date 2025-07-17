@@ -45,7 +45,7 @@ const
     ("Medellín", "Plaza Minorista \"José María Villa\""),
     ("Montería", "Mercado del Sur"),
     ("Neiva", "Surabastos"),
-    ("Pereira", "La 41"),
+    ("Pereira", "La 41-Impala"),
     ("Pereira", "Mercasa"),
     ("Pasto", "El Potrerillo"),
     ("Popayán", "Plaza de mercado del barrio Bolívar"),

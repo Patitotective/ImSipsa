@@ -356,7 +356,7 @@ proc generateDocument(dateFormat, inputPath: string) =
         of 7:
           "Finalmente, en"
         else:
-          "En"
+          "En" # FIX: A veces queda "En  en Santa Marta""???
 
       result.add " "
 

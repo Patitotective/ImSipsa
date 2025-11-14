@@ -709,7 +709,7 @@ when isMainModule:
 
   if inputPath.len > 0:
     try:
-      generateDocument("dd/MM/yyyy", inputPath)
+      generateDocument("d/M/yyyy", inputPath)
     except:
       fail "No se pudo generar el indicador"
   else:

@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-win: 
-    name: Build and upload windows exe
+    name: Build and upload amd64 exe
     runs-on: windows-2022
 
     steps:
@@ -17,13 +17,18 @@ jobs:
         run: |
           nimble install -d -y
           nimble build
-      - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4.6.2
+
+      - uses: oprypin/find-latest-tag@v1
+        id: latest-tag  # The step ID to refer to later.
         with:
-          path: "*.exe"
-      - name: Upload release binaries
-        uses: alexellis/upload-assets@0.4.0
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+          repository: ${{ github.repository }}  # The repository to scan.
+          releases-only: true  # We know that all relevant tags have a GitHub release for them.
+    
+      - name: Upload exe
+        uses: svenstaro/upload-release-action@v2
         with:
-          asset_paths: '["*.exe"]'
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: "*.exe"
+          file_glob: true
+          tag: ${{ steps.latest-tag.outputs.tag }}
+          overwrite: true

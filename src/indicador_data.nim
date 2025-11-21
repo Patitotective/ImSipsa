@@ -45,7 +45,7 @@ const
     ("Medellín", "Plaza Minorista \"José María Villa\""),
     ("Montería", "Mercado del Sur"),
     ("Neiva", "Surabastos"),
-    ("Pereira", "La 41"),
+    ("Pereira", "La 41-Impala"),
     ("Pereira", "Mercasa"),
     ("Pasto", "El Potrerillo"),
     ("Popayán", "Plaza de mercado del barrio Bolívar"),
@@ -100,6 +100,7 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
     "Ali", "Cant Pres", "Pres", "Peso Pres", "Cant Kg",
   ]:
     assert column in df, &"La columna \"{column}\" no existe"
+
   {.cast(gcsafe).}:
     let dateCol = df["FechaEncuesta"]
     let firstWeekStart = dateCol[0, string].parse(dateFormat)
@@ -125,6 +126,13 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
     )
     let firstWeekTotalKg = firstWeekDf["Cant Kg", float].sum
     let secondWeekTotalKg = secondWeekDf["Cant Kg", float].sum
+
+    # var firstWeekTotalKg, secondWeekTotalKg: float
+    # try:
+    #   firstWeekTotalKg = firstWeekDf["Cant Kg", float].sum
+    #   secondWeekTotalKg = secondWeekDf["Cant Kg", float].sum
+    # except Exception:
+    #   fail $df["Cant Kg", string]
   let weeksKgDifference =
     ((secondWeekTotalKg - firstWeekTotalKg) / firstWeekTotalKg) * 100 # Percentage
 
@@ -158,6 +166,12 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
   info pretty weeksGruposDifference
 
   proc parseFuente(input: string): Fuente =
+    var input = input
+    # This is to parse things like "Medellín, Plaza Minorista ""José María Villa"""
+    if input.len > 0 and input[0] == '"':
+      input = input[1 ..^ 2]
+      input = input.replace("\"\"", "\"")
+
     let fuenteSplit = input.rsplit(", ", maxsplit = 1)
     assert fuenteSplit.len in 1 .. 2, &"{fuenteSplit=}"
 

@@ -16,3 +16,9 @@ requires "excelin >= 0.5.4"
 requires "datamancer >= 0.4.2"
 requires "pretty >= 0.2.0"
 requires "https://github.com/Patitotective/minidocx-nim/ >= 0.1.0"
+
+import std/strformat
+
+task windows, "Build exe from Linux":
+  # Make sure to have mingw-w64 installed
+  exec &"nim {backend} -d:mingw -o:{namedBin[\"indicador\"]}.exe src/indicador.nim"

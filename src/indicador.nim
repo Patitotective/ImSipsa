@@ -703,9 +703,11 @@ when isMainModule:
 
     let (dir, name, ext) = path.splitFile()
     if ext == ".csv":
+      if inputPath.len > 0:
+        fail "Se encontró más de un archivo .csv y no debe haber más de un archivo .csv"
+
       info &"Se dectecto el archivo {path} y se va a utilizar para generar el indicador"
       inputPath = path
-      break
 
   if inputPath.len > 0:
     try:

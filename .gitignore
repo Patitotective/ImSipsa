@@ -8,6 +8,5 @@ nimblecache/
 htmldocs/
 
 *.exe
-# Ignore files like ImSipsa-0.3.1-amd64
-*-*.*.*-*
 *.docx
+*.csv

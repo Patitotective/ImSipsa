@@ -7,6 +7,7 @@ backend = "cpp" # minidocx requires C++
 srcDir = "src"
 version = "1.0.1"
 namedBin["indicador"] = "generadorDelIndicador-" & version
+binDir = "bin"
 
 # Dependencies
 
@@ -21,4 +22,4 @@ import std/strformat
 
 task windows, "Build exe from Linux":
   # Make sure to have mingw-w64 installed
-  exec &"nim {backend} -d:mingw -o:{namedBin[\"indicador\"]}.exe src/indicador.nim"
+  exec &"nimble {backend} -d:mingw -o:{namedBin[\"indicador\"]}.exe src/indicador.nim"

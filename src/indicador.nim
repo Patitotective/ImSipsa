@@ -288,7 +288,7 @@ proc generateDocument(dateFormat, inputPath: string) =
     )
     r.appendLineBreak()
 
-  block p5: # Actually these creates 4 paragraphs
+  block p5to8:
     let order = if secondWeekIncreased: SortOrder.Descending else: SortOrder.Ascending
 
     let ciudadesSorted = sorted(

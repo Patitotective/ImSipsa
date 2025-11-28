@@ -480,7 +480,7 @@ proc generateDocument(dateFormat, inputPath: string) =
             "menores",
         ]
       of 5:
-        result.add " $# el acopio en $# por $# que reportaron un $# del $# por los $# ingreso de inventarios de alimentos como ..." %
+        result.add " $# el acopio en $# por $# que reportaron un $# del $# por los $# inventarios de alimentos como ..." %
         [
           if weeksCiudadesDifference[ciudad] > 0: "incrementó" else: "disminuyó",
           myFormatFloat(abs(weeksCiudadesDifference[ciudad])),
@@ -629,14 +629,11 @@ proc generateDocument(dateFormat, inputPath: string) =
   block p10:
     var p = doc.appendParagraph(
       "Revisando el acopio entre la semana 1 y la semana 8 de los últimos " &
-        "tres años¹, el abastecimiento del presente año se encuentra por encima de los periodos " &
+        "tres años, el abastecimiento del presente año se encuentra por encima de los periodos " &
         "anteriores, y específicamente la octava semana del año aumentó 14,03% con respecto a la " &
         "misma semana de 2023 y 20,95% frente al 2022.",
       cdouble paragraphFont.size,
       paragraphFont.name,
-    )
-    var footNote = doc.appendParagraph(
-      "PIE DE NOTA¹: Se comparan 23 ciudades que cubre el SIPSA_A en 2023 y 2024 frente a 21 ciudades que cubría en 2022."
     )
 
   block p11:

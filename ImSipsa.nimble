@@ -6,7 +6,8 @@ license = "MIT"
 backend = "cpp" # minidocx requires C++
 srcDir = "src"
 version = "1.0.2"
-namedBin["indicador"] = "generadorDelIndicador-" & version
+namedBin["indicador"] =
+  "generadorDelIndicador-" & version & (when defined(Windows): ".exe" else: "")
 binDir = "bin"
 
 # Dependencies

@@ -86,7 +86,7 @@ proc uniform(str: string): string =
 proc processDataIndicador*(dateFormat, inputPath: string): auto =
   let startTime = getMonoTime()
 
-  let df = parseCsvString(
+  var df = parseCsvString(
     readFile(inputPath).convert(destEncoding = "UTF-8", srcEncoding = "CP1252"),
     sep = ';',
     quote = '\0',
@@ -100,6 +100,8 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
     "Ali", "Cant Pres", "Pres", "Peso Pres", "Cant Kg",
   ]:
     assert column in df, &"La columna \"{column}\" no existe"
+
+  df = df.mutate(f{"Cant Kg" ~ c"Cant Kg".replace(',', '.').parseFloat()})
 
   {.cast(gcsafe).}:
     let dateCol = df["FechaEncuesta"]

@@ -11,3 +11,4 @@ bin/
 *.exe
 *.docx
 *.csv
+src/test.nim

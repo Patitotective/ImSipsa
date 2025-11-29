@@ -6,7 +6,7 @@ import
 import minidocx/lowapi
 import pretty
 
-import ./[indicador_data, utils]
+import ./[indicador_data, utils, prefsfile]
 
 const
   spanishMonths = {
@@ -33,10 +33,6 @@ const
     dSat: "sábado",
     dSun: "domingo",
   }.toTable
-
-  titleFont = (size: 14, name: "Segoe UI")
-  paragraphFont = (size: 11, name: "Segoe UI")
-  legendFont = (size: 10, name: "Segoe UI")
 
   gruposArticle =
     {gVerdHort: "las", gTubRaiPla: "los", gFrutas: "las", gOtros: "los"}.toTable
@@ -102,7 +98,7 @@ proc at[K, V](t: OrderedTable[K, V], i: int): tuple[key: K, val: V] =
 
   raise newException(IndexDefect, &"Not found index {i}")
 
-proc generateDocument(dateFormat, inputPath: string) =
+proc generateDocument(inputPath: string, prefs: Prefs) =
   let startTime = getMonoTime()
 
   let (
@@ -111,7 +107,7 @@ proc generateDocument(dateFormat, inputPath: string) =
     secondWeekGruposTotalKg, weeksGruposDifference, weeksFuentesDifference,
     weeksCiudadesDifference, weeksFuentesGruposDifference,
     weeksCiudadesGruposDifference, weeksWeekdaysDifference,
-  ) = processDataIndicador(dateFormat, inputPath)
+  ) = processDataIndicador(inputPath, prefs)
 
   var doc: Document
 
@@ -126,8 +122,8 @@ proc generateDocument(dateFormat, inputPath: string) =
 
     var r = p.appendRun(
       "$# oferta de alimentos" % [if secondWeekIncreased: "Mayor" else: "Menor"],
-      cdouble titleFont.size,
-      titleFont.name,
+      cdouble prefs.titleFont.size,
+      prefs.titleFont.name,
     )
 
     r.setFontStyle(RunFontStyle.Bold)
@@ -153,8 +149,8 @@ proc generateDocument(dateFormat, inputPath: string) =
     var p = doc.appendParagraph()
 
     var r = p.appendRun()
-    r.setFont(paragraphFont.name)
-    r.setFontSize(cdouble paragraphFont.size)
+    r.setFont(prefs.paragraphFont.name)
+    r.setFontSize(cdouble prefs.paragraphFont.size)
     r.appendLineBreak()
     r.appendText(
       (
@@ -202,8 +198,8 @@ proc generateDocument(dateFormat, inputPath: string) =
           "igual",
         &"{spanishWeekdays[firstWeekEnd.weekday]} {firstWeekEnd.monthday} de {spanishMonths[firstWeekEnd.month]}{firstWeekEndYear}",
       ],
-      cdouble paragraphFont.size,
-      paragraphFont.name,
+      cdouble prefs.paragraphFont.size,
+      prefs.paragraphFont.name,
     )
     p.setAlignment(ParagraphAlignment.Justified)
 
@@ -224,8 +220,8 @@ proc generateDocument(dateFormat, inputPath: string) =
         ""
 
     var r = p.appendRun()
-    r.setFont(legendFont.name)
-    r.setFontSize(cdouble legendFont.size)
+    r.setFont(prefs.legendFont.name)
+    r.setFontSize(cdouble prefs.legendFont.size)
     r.setFontStyle(RunFontStyle.Bold)
 
     r.appendLineBreak()
@@ -233,7 +229,7 @@ proc generateDocument(dateFormat, inputPath: string) =
       "Gráfico 4. Abastecimiento diario de alimentos de las últimas dos semanas"
     )
     r.appendLineBreak()
-    r.appendText(&"{fuentes.len} mercados mayoristas")
+    r.appendText(&"{prefs.fuentes.len} mercados mayoristas")
     r.appendLineBreak()
     r.appendText(
       &"{firstWeekStart.monthday}{firstWeekStartMonth}{firstWeekStartYear} al {secondWeekEnd.monthday} de {spanishMonths[secondWeekEnd.month]} de {secondWeekEnd.year}"
@@ -241,16 +237,18 @@ proc generateDocument(dateFormat, inputPath: string) =
 
     r.appendLineBreak()
 
-    var r2 = p.appendRun("IMAGEN DE LA GRÁFICA", cdouble titleFont.size + 10)
+    var r2 = p.appendRun("IMAGEN DE LA GRÁFICA", cdouble prefs.titleFont.size + 10)
     r2.setFontStyle(mixFlags(RunFontStyle.Bold, RunFontStyle.Underline))
 
     r2.appendLineBreak()
 
-    var r3 = p.appendRun("Fuente:", cdouble legendFont.size - 1, legendFont.name)
+    var r3 =
+      p.appendRun("Fuente:", cdouble prefs.legendFont.size - 1, prefs.legendFont.name)
     r3.setFontStyle(RunFontStyle.Bold)
 
-    var r4 =
-      p.appendRun(" DANE – SIPSA_A", cdouble legendFont.size - 1, legendFont.name)
+    var r4 = p.appendRun(
+      " DANE – SIPSA_A", cdouble prefs.legendFont.size - 1, prefs.legendFont.name
+    )
     r4.appendLineBreak()
 
   block p4:
@@ -283,8 +281,8 @@ proc generateDocument(dateFormat, inputPath: string) =
         if weeksGruposDifference[gruposSorted[3]] > 0: "subió" else: "bajó",
         myFormatFloat(abs(weeksGruposDifference[gruposSorted[3]])),
       ],
-      cdouble paragraphFont.size,
-      paragraphFont.name,
+      cdouble prefs.paragraphFont.size,
+      prefs.paragraphFont.name,
     )
     r.appendLineBreak()
 
@@ -292,7 +290,7 @@ proc generateDocument(dateFormat, inputPath: string) =
     let order = if secondWeekIncreased: SortOrder.Descending else: SortOrder.Ascending
 
     let ciudadesSorted = sorted(
-      ciudades,
+      prefs.ciudades,
       proc(x, y: string): int =
         cmp(weeksCiudadesDifference[x], weeksCiudadesDifference[y]),
       order,
@@ -302,10 +300,10 @@ proc generateDocument(dateFormat, inputPath: string) =
     for ciudad in ciudadesSorted:
       ciudadesMercados[ciudad] = newSeq[string]()
 
-    for fuente in fuentes:
+    for fuente in prefs.fuentes:
       ciudadesMercados[fuente.ciudad].add fuente.mercado
 
-    info pretty ciudadesMercados
+    # info pretty ciudadesMercados
 
     proc ciudadSentence(ciudad: string, index: int): string =
       assert ciudad in ciudadesMercados and ciudad in ciudadesArticles, &"{ciudad=}"
@@ -573,8 +571,8 @@ proc generateDocument(dateFormat, inputPath: string) =
       var r = p.appendRun(
         ciudadSentence(ciudadesMercados.at(i).key, r1) & " " &
           ciudadSentence(ciudadesMercados.at(i + 1).key, r2),
-        cdouble paragraphFont.size,
-        paragraphFont.name,
+        cdouble prefs.paragraphFont.size,
+        prefs.paragraphFont.name,
       )
       r.appendLineBreak()
 
@@ -621,8 +619,8 @@ proc generateDocument(dateFormat, inputPath: string) =
       "La participación de los diferentes grupos en el total del abastecimiento " &
         "para la semana comprendida del $# fue la siguiente: $#" %
         [weeksText, gruposText],
-      cdouble paragraphFont.size,
-      paragraphFont.name,
+      cdouble prefs.paragraphFont.size,
+      prefs.paragraphFont.name,
     )
     r.appendLineBreak()
 
@@ -632,15 +630,15 @@ proc generateDocument(dateFormat, inputPath: string) =
         "tres años, el abastecimiento del presente año se encuentra por encima de los periodos " &
         "anteriores, y específicamente la octava semana del año aumentó 14,03% con respecto a la " &
         "misma semana de 2023 y 20,95% frente al 2022.",
-      cdouble paragraphFont.size,
-      paragraphFont.name,
+      cdouble prefs.paragraphFont.size,
+      prefs.paragraphFont.name,
     )
 
   block p11:
     var p = doc.appendParagraph()
     var r = p.appendRun()
-    r.setFont(legendFont.name)
-    r.setFontSize(cdouble legendFont.size)
+    r.setFont(prefs.legendFont.name)
+    r.setFontSize(cdouble prefs.legendFont.size)
     r.setFontStyle(RunFontStyle.Bold)
 
     for i in 1 .. 9:
@@ -653,16 +651,18 @@ proc generateDocument(dateFormat, inputPath: string) =
     r.appendText("29 mercados mayoristas (2022) y 32 mercados mayoristas (2023 y 2024)")
     r.appendLineBreak()
 
-    var r2 = p.appendRun("IMAGEN DE LA GRÁFICA", cdouble titleFont.size + 10)
+    var r2 = p.appendRun("IMAGEN DE LA GRÁFICA", cdouble prefs.titleFont.size + 10)
     r2.setFontStyle(mixFlags(RunFontStyle.Bold, RunFontStyle.Underline))
 
     r2.appendLineBreak()
 
-    var r3 = p.appendRun("Fuente:", cdouble legendFont.size - 1, legendFont.name)
+    var r3 =
+      p.appendRun("Fuente:", cdouble prefs.legendFont.size - 1, prefs.legendFont.name)
     r3.setFontStyle(RunFontStyle.Bold)
 
-    var r4 =
-      p.appendRun(" DANE – SIPSA_A", cdouble legendFont.size - 1, legendFont.name)
+    var r4 = p.appendRun(
+      " DANE – SIPSA_A", cdouble prefs.legendFont.size - 1, prefs.legendFont.name
+    )
     r4.appendLineBreak()
 
   let filename = block:
@@ -680,7 +680,7 @@ proc generateDocument(dateFormat, inputPath: string) =
       else:
         ""
 
-    # An example of filename: Indicador 15-28feb2024.docx
+    # An example of filename would be Indicador 15-28feb2024.docx
     &"Indicador {firstWeekStart.monthday}{firstWeekStartMonth}{firstWeekStartYear}-{secondWeekEnd.monthday}{secondWeekEndMonth}{secondWeekEnd.year}.docx"
 
   let outputPath = inputPath.splitFile.dir & "/" & filename
@@ -693,6 +693,8 @@ when isMainModule:
   let logPath = getAppDir() & "/" & currentSourcePath().splitFile().name & ".log"
   setupLogging(logPath)
 
+  let prefs = readPrefs()
+
   var inputPath: string
   for kind, path in walkDir(getAppDir()):
     if kind != pcFile:
@@ -703,12 +705,12 @@ when isMainModule:
       if inputPath.len > 0:
         fail "Se encontró más de un archivo .csv y no debe haber más de un archivo .csv"
 
-      info &"Se dectecto el archivo {path} y se va a utilizar para generar el indicador"
+      info &"Se detectó el archivo {path} y se va a utilizar para generar el indicador"
       inputPath = path
 
   if inputPath.len > 0:
     try:
-      generateDocument("d/M/yyyy", inputPath)
+      generateDocument(inputPath, prefs)
     except:
       fail "No se pudo generar el indicador"
   else:

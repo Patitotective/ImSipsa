@@ -2,61 +2,16 @@ import std/[times, sets, strformat, tables, strutils, encodings, monotimes, logg
 import datamancer
 import arraymancer
 import pretty
-import ./utils
+import ./[utils, prefsfile]
 
-type
-  Grupo* = enum
-    gVerdHort = "verduras y hortalizas"
-    gTubRaiPla = "tubérculos, raíces y plátanos"
-    gFrutas = "frutas"
-    gOtros = "otros grupos"
-      # granos y cereales; lácteos y huevos; pescados; procesados; carnes
-
-  Fuente* = tuple[ciudad, mercado: string]
+type Grupo* = enum
+  gVerdHort = "verduras y hortalizas"
+  gTubRaiPla = "tubérculos, raíces y plátanos"
+  gFrutas = "frutas"
+  gOtros = "otros grupos"
+    # granos y cereales; lácteos y huevos; pescados; procesados; carnes
 
 const
-  #dateFormat = "dd/MM/yyyy"
-  ciudades* = [
-    "Armenia", "Barranquilla", "Bogotá, D.C.", "Bucaramanga", "Cali", "Cartagena",
-    "Cúcuta", "Florencia (Caquetá)", "Ibagué", "Ipiales (Nariño)", "Manizales",
-    "Medellín", "Montería", "Neiva", "Pereira", "Pasto", "Popayán",
-    "Santa Marta (Magdalena)", "Sincelejo", "Tibasosa (Boyacá)", "Tunja", "Valledupar",
-    "Villavicencio",
-  ]
-  fuentes* = [
-    (ciudad: "Armenia", mercado: "Mercar"),
-    ("Barranquilla", "Barranquillita"),
-    ("Barranquilla", "Granabastos"),
-    ("Bogotá, D.C.", "Corabastos"),
-    ("Bogotá, D.C.", "Paloquemao"),
-    ("Bogotá, D.C.", "Plaza Las Flores"),
-    ("Bogotá, D.C.", "Plaza Samper Mendoza"),
-    ("Bucaramanga", "Centroabastos"),
-    ("Cali", "Cavasa"),
-    ("Cali", "Santa Elena"),
-    ("Cartagena", "Bazurto"),
-    ("Cúcuta", "Cenabastos"),
-    ("Cúcuta", "La Nueva Sexta"),
-    ("Florencia (Caquetá)", ""),
-    ("Ibagué", "Plaza La 21"),
-    ("Ipiales (Nariño)", "Centro de acopio"),
-    ("Manizales", "Centro Galerías"),
-    ("Medellín", "Central Mayorista de Antioquia"),
-    ("Medellín", "Plaza Minorista \"José María Villa\""),
-    ("Montería", "Mercado del Sur"),
-    ("Neiva", "Surabastos"),
-    ("Pereira", "La 41-Impala"),
-    ("Pereira", "Mercasa"),
-    ("Pasto", "El Potrerillo"),
-    ("Popayán", "Plaza de mercado del barrio Bolívar"),
-    ("Santa Marta (Magdalena)", ""),
-    ("Sincelejo", "Nuevo Mercado"),
-    ("Tibasosa (Boyacá)", "Coomproriente"),
-    ("Tunja", "Complejo de Servicios del Sur"),
-    ("Valledupar", "Mercabastos"),
-    ("Valledupar", "Mercado Nuevo"),
-    ("Villavicencio", "CAV"),
-  ]
   grupos* = [ # Not uniformed (with accents)
     "verduras y hortalizas",
     "tubérculos, raíces y plátanos",
@@ -83,7 +38,7 @@ proc uniform(str: string): string =
     ("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")
   )
 
-proc processDataIndicador*(dateFormat, inputPath: string): auto =
+proc processDataIndicador*(inputPath: string, prefs: Prefs): auto =
   let startTime = getMonoTime()
 
   var df = parseCsvString(
@@ -105,8 +60,8 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
 
   {.cast(gcsafe).}:
     let dateCol = df["FechaEncuesta"]
-    let firstWeekStart = dateCol[0, string].parse(dateFormat)
-    let secondWeekEnd = dateCol[dateCol.high, string].parse(dateFormat)
+    let firstWeekStart = dateCol[0, string].parse(prefs.dateFormat)
+    let secondWeekEnd = dateCol[dateCol.high, string].parse(prefs.dateFormat)
   let firstWeekEnd = firstWeekStart + 6.days
   let secondWeekStart = secondWeekEnd - 6.days
 
@@ -117,13 +72,13 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
     let firstWeekDf = df.filter(
       f{
         string -> bool:
-          inDays(idx(`FechaEncuesta`).parse(dateFormat) - firstWeekStart) < 7
+          inDays(idx(`FechaEncuesta`).parse(prefs.dateFormat) - firstWeekStart) < 7
       }
     )
     let secondWeekDf = df.filter(
       f{
         string -> bool:
-          inDays(secondWeekEnd - idx(`FechaEncuesta`).parse(dateFormat)) < 7
+          inDays(secondWeekEnd - idx(`FechaEncuesta`).parse(prefs.dateFormat)) < 7
       }
     )
     let firstWeekTotalKg = firstWeekDf["Cant Kg", float].sum
@@ -189,10 +144,10 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
   proc sumFuentesAndCiudades(
       df: DataFrame
   ): tuple[fuentes: Table[Fuente, float], ciudades: Table[string, float]] =
-    for f in fuentes:
+    for f in prefs.fuentes:
       result.fuentes[f] = 0
 
-    for c in ciudades:
+    for c in prefs.ciudades:
       result.ciudades[c] = 0
     {.cast(gcsafe).}:
       for t, subDf in groups df.group_by("Fuente"):
@@ -230,12 +185,12 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
     fuentes: Table[Fuente, Table[Grupo, float]],
     ciudades: Table[string, Table[Grupo, float]],
   ] =
-    for f in fuentes:
+    for f in prefs.fuentes:
       result.fuentes[f] = initTable[Grupo, float]()
       for g in Grupo:
         result.fuentes[f][g] = 0
 
-    for c in ciudades:
+    for c in prefs.ciudades:
       result.ciudades[c] = initTable[Grupo, float]()
       for g in Grupo:
         result.ciudades[c][g] = 0
@@ -295,7 +250,8 @@ proc processDataIndicador*(dateFormat, inputPath: string): auto =
 
         assert t[0][1].kind == VString, &"{t[0][1].kind=}"
 
-        let fecha = t[0][1].toStr.parse(dateFormat) # t[0][1] would be each FechaEncuesta
+        let fecha = t[0][1].toStr.parse(prefs.dateFormat)
+          # t[0][1] would be each FechaEncuesta
         result[fecha.weekday] += subDf["Cant Kg", float].sum
 
   let firstWeekWeekdaysTotalKg = firstWeekDf.sumWeekdays()

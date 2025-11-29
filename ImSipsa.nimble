@@ -5,10 +5,10 @@ description = "It processes CSV data and outputs a DOCX file"
 license = "MIT"
 backend = "cpp" # minidocx requires C++
 srcDir = "src"
-version = "1.1.0"
+version = "1.2.0"
 namedBin["indicador"] =
   "generadorDelIndicador-" & version & (when defined(Windows): ".exe" else: "")
-binDir = "bin"
+binDir = "Generar El Indicador"
 
 # Dependencies
 

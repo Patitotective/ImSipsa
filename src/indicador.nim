@@ -225,9 +225,7 @@ proc generateDocument(inputPath: string, prefs: Prefs) =
     r.setFontStyle(RunFontStyle.Bold)
 
     r.appendLineBreak()
-    r.appendText(
-      "Gráfico 4. Abastecimiento diario de alimentos de las últimas dos semanas"
-    )
+    r.appendText(prefs.thirdParagraph)
     r.appendLineBreak()
     r.appendText(&"{prefs.fuentes.len} mercados mayoristas")
     r.appendLineBreak()
@@ -626,12 +624,7 @@ proc generateDocument(inputPath: string, prefs: Prefs) =
 
   block p10:
     var p = doc.appendParagraph(
-      "Revisando el acopio entre la semana 1 y la semana 8 de los últimos " &
-        "tres años, el abastecimiento del presente año se encuentra por encima de los periodos " &
-        "anteriores, y específicamente la octava semana del año aumentó 14,03% con respecto a la " &
-        "misma semana de 2023 y 20,95% frente al 2022.",
-      cdouble prefs.paragraphFont.size,
-      prefs.paragraphFont.name,
+      prefs.tenthParagraph, cdouble prefs.paragraphFont.size, prefs.paragraphFont.name
     )
 
   block p11:
@@ -644,11 +637,11 @@ proc generateDocument(inputPath: string, prefs: Prefs) =
     for i in 1 .. 9:
       r.appendLineBreak()
 
-    r.appendText(
-      "Gráfico 5. Abastecimiento semanal de alimentos de los últimos tres años"
-    )
+    r.appendText(prefs.eleventhParagraph[0])
     r.appendLineBreak()
-    r.appendText("29 mercados mayoristas (2022) y 32 mercados mayoristas (2023 y 2024)")
+    r.appendText(prefs.eleventhParagraph[1])
+    r.appendLineBreak()
+    r.appendText(prefs.eleventhParagraph[2])
     r.appendLineBreak()
 
     var r2 = p.appendRun("IMAGEN DE LA GRÁFICA", cdouble prefs.titleFont.size + 10)

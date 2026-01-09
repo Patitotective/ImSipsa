@@ -10,6 +10,9 @@ type
     titleFont*: Font
     paragraphFont*: Font
     legendFont*: Font
+    thirdParagraph*: string
+    tenthParagraph*: string
+    eleventhParagraph*: seq[string]
     fuentes*: seq[Fuente]
     ciudades*: seq[string]
 
@@ -21,6 +24,13 @@ dateFormat "d/M/yyyy" // Más información en https://nim-lang.org/docs/times.ht
 titleFont "Segoe UI" 14
 paragraphFont "Segoe UI" 11
 legendFont "Segoe UI" 10
+thirdParagraph "Gráfico 4. Abastecimiento diario de alimentos de las últimas dos semanas"
+tenthParagraph "Revisando el acopio entre la semana 1 y la semana 8 de los últimos tres años, el abastecimiento del presente año se encuentra por encima de los periodos anteriores, y específicamente la octava semana del año aumentó 14,03% con respecto a la misma semana de 2023 y 20,95% frente al 2022."
+eleventhParagraph {
+  - "Gráfico 5. Abastecimiento semanal de alimentos de los últimos tres años"
+  - "32 mercados mayoristas"
+  - "Semana X a la Y de 2024, 2025 y 2026"
+}
 
 fuentes {
     // Ciudad Mercado
@@ -90,6 +100,8 @@ proc readPrefs*(): Prefs =
     result = parseKdl(default).decodeKdl(Prefs)
   else:
     result = parseKdlFile(path).decodeKdl(Prefs)
+
+  assert result.eleventhParagraph.len == 3, "eleventhParagraph debe tener 3 hijos"
 
   result.ciudades = block:
     var s: seq[string]

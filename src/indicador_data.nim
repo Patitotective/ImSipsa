@@ -33,6 +33,8 @@ const
     "carnes": gOtros,
   }.toTable
 
+  sortableDateFormat = "yyyy/MM/dd"
+
 proc uniform(str: string): string =
   str.strip().toLowerAscii().multiReplace(
     ("á", "a"), ("é", "e"), ("í", "i"), ("ó", "o"), ("ú", "u"), ("ñ", "n")
@@ -57,28 +59,47 @@ proc processDataIndicador*(inputPath: string, prefs: Prefs): auto =
     assert column in df, &"La columna \"{column}\" no existe"
 
   df = df.mutate(f{"Cant Kg" ~ c"Cant Kg".replace(',', '.').parseFloat()})
+  df = df.mutate(
+    f{
+      string -> string:
+        "FechaEncuesta" ~
+        c"FechaEncuesta".parse(prefs.dateFormat).format(sortableDateFormat)
+    }
+  )
+  df = df.arrange("FechaEncuesta", SortOrder.Ascending)
+  # df = df.mutate(
+  #   f{
+  #     string -> string:
+  #       "FechaEncuesta" ~
+  #       c"FechaEncuesta".parse(sortableDateFormat).format(prefs.dateFormat)
+  #   }
+  # )
 
   {.cast(gcsafe).}:
     let dateCol = df["FechaEncuesta"]
-    let firstWeekStart = dateCol[0, string].parse(prefs.dateFormat)
-    let secondWeekEnd = dateCol[dateCol.high, string].parse(prefs.dateFormat)
+    let firstWeekStart = dateCol[0, string].parse(sortableDateFormat)
+    let secondWeekEnd = dateCol[dateCol.high, string].parse(sortableDateFormat)
+
   let firstWeekEnd = firstWeekStart + 6.days
   let secondWeekStart = secondWeekEnd - 6.days
 
-  assert inDays(secondWeekEnd - firstWeekStart) == 13,
-    &"Entre el primer y último registro no hay dos semanas, hay {{inDays(secondWeekEnd - firstWeekStart)}} días"
+  info &"Primera semanda -> desde {firstWeekStart.format(prefs.dateFormat)} hasta {firstWeekEnd.format(prefs.dateFormat)}"
+  info &"Segunda semana -> desde {secondWeekStart.format(prefs.dateFormat)} hasta {secondWeekEnd.format(prefs.dateFormat)}"
+
+  if inDays(secondWeekEnd - firstWeekStart) != 13:
     # Two weeks, not 14 since subtracting doesn't include secondWeekEnd
+    warn &"Entre el primer y último registro no hay dos semanas, hay {inDays(secondWeekEnd - firstWeekStart)} días"
   {.cast(gcsafe).}:
     let firstWeekDf = df.filter(
       f{
         string -> bool:
-          inDays(idx(`FechaEncuesta`).parse(prefs.dateFormat) - firstWeekStart) < 7
+          inDays(idx(`FechaEncuesta`).parse(sortableDateFormat) - firstWeekStart) < 7
       }
     )
     let secondWeekDf = df.filter(
       f{
         string -> bool:
-          inDays(secondWeekEnd - idx(`FechaEncuesta`).parse(prefs.dateFormat)) < 7
+          inDays(secondWeekEnd - idx(`FechaEncuesta`).parse(sortableDateFormat)) < 7
       }
     )
     let firstWeekTotalKg = firstWeekDf["Cant Kg", float].sum
@@ -93,6 +114,8 @@ proc processDataIndicador*(inputPath: string, prefs: Prefs): auto =
   let weeksKgDifference =
     ((secondWeekTotalKg - firstWeekTotalKg) / firstWeekTotalKg) * 100 # Percentage
 
+  info pretty firstWeekTotalKg
+  info pretty secondWeekTotalKg
   info pretty weeksKgDifference
 
   proc parseGrupo(input: string): Grupo =
@@ -149,6 +172,7 @@ proc processDataIndicador*(inputPath: string, prefs: Prefs): auto =
 
     for c in prefs.ciudades:
       result.ciudades[c] = 0
+
     {.cast(gcsafe).}:
       for t, subDf in groups df.group_by("Fuente"):
         assert t.len == 1, &"{t.len=}" # Since it was only grouped_by one column
@@ -250,7 +274,7 @@ proc processDataIndicador*(inputPath: string, prefs: Prefs): auto =
 
         assert t[0][1].kind == VString, &"{t[0][1].kind=}"
 
-        let fecha = t[0][1].toStr.parse(prefs.dateFormat)
+        let fecha = t[0][1].toStr.parse(sortableDateFormat)
           # t[0][1] would be each FechaEncuesta
         result[fecha.weekday] += subDf["Cant Kg", float].sum
 

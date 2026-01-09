@@ -711,7 +711,7 @@ when isMainModule:
   if inputPath.len > 0:
     try:
       generateDocument(inputPath, prefs)
-    except:
+    except Exception: # This way it catches any exception
       fail "No se pudo generar el indicador"
   else:
     fatal "No se encontró ningún archivo CSV"

@@ -28,10 +28,10 @@ proc setupLogging*(path: string) =
   const logFormat = "[$date $time] $levelname "
 
   var consoleLog = newConsoleLogger(fmtStr = logFormat)
-  var rollingLog = newFileLogger(path, fmtStr = logFormat)
+  var fileLog = newFileLogger(path, mode = fmWrite, fmtStr = logFormat)
 
   addHandler(consoleLog)
-  addHandler(rollingLog)
+  addHandler(fileLog)
 
   debug "Start v" & NimblePkgVersion
 
